@@ -841,7 +841,9 @@
       kind: 'place', pos, from: state.pending, tier: result.tier, points,
       wrongSide: result.wrongSide, direction: result.direction, line: L.coachLine(result, target.role), hatTrick
     };
-    const positions = { ...state.positions, [pos]: { x: target.x, y: target.y, status: 'ice' } };
+    // A perfect spot stays where the kid put it; anything else moves to the right spot so they can see it.
+    const spot = result.tier === 'perfect' ? state.pending : { x: target.x, y: target.y };
+    const positions = { ...state.positions, [pos]: { x: spot.x, y: spot.y, status: 'ice' } };
     return addPoints({ ...state, phase: 'feedback', positions, pending: null, streak, last }, points);
   }
 
