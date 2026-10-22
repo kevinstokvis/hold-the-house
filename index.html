@@ -112,6 +112,11 @@
   .tok.active circle.halo, .tok.lit circle.halo { opacity: .4; }
   .tok.lit circle:not(.halo) { stroke: var(--gold); stroke-width: 2.6; }
   .pick-phase .ours .tok { cursor: pointer; }
+  .tok.old { opacity: .85; }
+  .tok.old circle:not(.halo) { stroke-dasharray: 2.6 1.6; }
+  .trails .trail { fill: none; stroke: var(--us); stroke-width: .5; stroke-dasharray: 1.6 1; stroke-linecap: round; }
+  .trails .ghost { fill: none; stroke: var(--us); stroke-width: .35; stroke-dasharray: 1 .8; opacity: .7; }
+  .trail-head { fill: var(--us); }
   .ours .tok.slide { transition: transform .6s cubic-bezier(.3, .7, .2, 1); }
   .tok .body.shake { animation: shake .5s ease-in-out 2; }
   @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3.5px); } 75% { transform: translateX(3.5px); } }
@@ -246,7 +251,7 @@
   </div>
 </div>
 <script id="htg-data">
-// Game content: rink geometry, the 12 plays, and every coach line.
+// Game content: rink geometry, every play, and every coach line.
 // Coordinates are in feet: x across the ice (0 = our LEFT boards, 85 = our RIGHT boards),
 // y up the ice (0 = our end boards, 200 = their end boards).
 (function () {
@@ -273,19 +278,22 @@
   const ROLES = {
     puckD: {
       perfect: "That's pressure! Body between the puck and the net. They've got nowhere to go.",
-      miss: "Somebody has to be ON the puck! The D on the puck's side goes right at the carrier, from the net side."
+      miss: "Somebody has to be ON the puck! The D on the puck's side goes right at the carrier, from the net side.",
+      wrongSide: 'Pressure the puck! Get right on the carrier, from the net side.'
     },
     netFrontD: {
       perfect: "Guarding the house! You're between their player and the net, and your stick cuts off the pass.",
       miss: 'Guard the front of the net: stay between their player and the net, a step toward the puck.',
-      tooDeep: "Too deep! Step up so you're beside their player, between them and the puck."
+      tooDeep: "Too deep! Step up so you're beside their player, between them and the puck.",
+      wrongSide: "Protect the house! Their player is right in front of our net. Get between them and the net so they can't tip it in."
     },
     rushD: {
       perfect: 'Great gap! Inside position, stick on the puck. Push them to the boards.',
       miss: 'On a 1-on-1, stay a couple of stick lengths in front of the puck carrier, between them and the net.',
       tooDeep: "Too deep! Don't back into your goalie. Close the gap.",
       tooHigh: "Too far out! Step up too early and they'll skate right around you.",
-      tooWide: "Stay inside! Don't let them cut to the middle."
+      tooWide: "Stay inside! Don't let them cut to the middle.",
+      wrongSide: 'Close the gap! Skate up to meet them, but stay on the net side: between them and our net.'
     },
     partnerD: {
       perfect: 'Tracking back together! Level with your partner, guarding the middle.',
@@ -297,7 +305,8 @@
     lowC: {
       perfect: 'Center = third D! Low, between their helper and the net, ready to jump in.',
       miss: "When the puck's in our corner, the center stays LOW to help the D.",
-      tooHigh: 'Too high! Centers come low to help when the puck is in our corner.'
+      tooHigh: 'Too high! Centers come low to help when the puck is in our corner.',
+      wrongSide: 'Center = third D! Get low, between their helper and our net, not behind them.'
     },
     strongW: {
       perfect: 'Perfect wing spot: between the point and the slot. You can jump the point or block a pass in.',
@@ -306,28 +315,32 @@
       tooHigh: "Too high! Don't stand by the point like a cone. Come in a few strides."
     },
     weakW: {
-      perfect: "High slot! You're guarding the middle, the most dangerous pass.",
-      miss: 'Far-side wing drops into the high slot.',
-      tooDeep: "Too deep! It's crowded down there. The middle needs you.",
-      tooHigh: 'Too high! Drop into the slot. The middle matters more than the point.',
-      tooWide: 'Come to the middle! The slot is the danger zone.'
+      perfect: "High slot! You're covering their D and the middle of the ice at the same time.",
+      miss: 'Far-side wing: you cover their D AND the middle. Sit in the high slot, between them and our net.',
+      tooDeep: "Too deep! It's crowded down there. Get up to the high slot, where you cover their D and the middle.",
+      tooHigh: "Too high! You've got their D, but the middle is wide open. Drop into the high slot so you cover both.",
+      tooWide: 'Come to the middle! From the high slot you cover their D and the middle.'
     },
     wallW: {
       perfect: "On the puck! Inside position, so they can't cut to the middle.",
-      miss: 'Puck on your side boards = your puck. Go pressure it, from the inside.'
+      miss: 'Puck on your side boards = your puck. Go pressure it, from the inside.',
+      wrongSide: "Pressure the puck! Get right on the carrier, from the inside so they can't cut to the middle."
     },
     pointW: {
       perfect: 'In the shooting lane! Stick on the puck. Block that shot.',
       miss: 'Puck at the point: the wing on that side jumps out to pressure the shooter.',
-      tooDeep: "Too deep! The shooter's wide open. Get out to the point!"
+      tooDeep: "Too deep! The shooter's wide open. Get out to the point!",
+      wrongSide: 'Pressure the shooter! Get out on the point, in the shooting lane.'
     },
     slotC: {
       perfect: "Slot covered! You're between their player and the net.",
-      miss: 'The center guards the slot. Get between their player and the net.'
+      miss: 'The center guards the slot. Get between their player and the net.',
+      wrongSide: 'Protect the house! Their player is in the slot. Get between them and our net, not behind them.'
     },
     lowD: {
       perfect: 'Tied up! Between your player and the net. No tips, no rebounds.',
-      miss: 'Get between your player and the front of the net. Anywhere on that line works.'
+      miss: 'Get between your player and the front of the net. Anywhere on that line works.',
+      wrongSide: 'Protect the house! Their player is right by our net. Get between them and the net, not behind them.'
     },
     belowLineD: {
       perfect: 'Stayed on the puck! Body between them and the front of the net.',
@@ -335,21 +348,27 @@
     },
     farPostD: {
       perfect: 'Far post covered! Nobody sneaks in the back door.',
-      miss: 'Watch the back door! The other D guards the far side of the net.'
+      miss: 'Watch the back door! The other D guards the far side of the net.',
+      wrongSide: 'Watch the back door! Get between their player and our net, not behind them.'
     },
     pulledInW: {
-      perfect: 'Pulled in tight, inside the dots. Nothing gets through the middle.',
-      miss: "Puck's way down low. Come in! Inside the dots, near the top of the circles."
+      perfect: "Covering their D! Up top, inside the dots. If the puck goes back to the point, you're right there.",
+      miss: "Your job is their D at the point. Puck's way down low, so sit inside the dots near the top of the circles, between their D and the net.",
+      tooHigh: "Too high! Their D doesn't have the puck yet. Come in to the top of the circles. You can still jump out to them if it goes back to the point.",
+      tooDeep: 'Too deep! Your job is their D at the point. Stay up near the top of the circles so you can get out to them.',
+      tooWide: 'Too wide! Come inside the dots, between their D and the net.'
     },
     backcheckC: {
       perfect: 'Middle of the ice! Your D has the puck. You take the middle.',
       miss: "Your D already has the puck carrier. Don't double up. Get to the middle!",
-      tooWide: 'Wrong lane! Backcheck through the MIDDLE.'
+      tooWide: 'Wrong lane! Backcheck through the MIDDLE.',
+      wrongSide: 'Backcheck harder! Your D has the puck carrier, so race back past their player in the middle and get between them and our net.'
     },
     forecheckF1: {
       perfect: 'F1 on the puck! Come from the middle and push them to the boards.',
       miss: 'F1 goes right at the puck carrier, coming from the middle side.',
-      tooHigh: 'Too far away! F1 has to get on the puck.'
+      tooHigh: 'Too far away! F1 has to get on the puck.',
+      wrongSide: 'Pressure the puck! F1 gets right on the carrier, coming from the middle.'
     },
     forecheckF2: {
       perfect: 'Good support! F2 is on the wall, ready to win the loose puck.',
@@ -366,8 +385,33 @@
   };
 
   const WRONG_SIDE_LINE = 'Puck. You. Net. Get between them and the net!';
+  // A wing who goes right to their D at the point: right player, but too far out to help.
+  const ON_COVER_LINE = 'Good job, their D is your player! But come into the zone a bit more, so you can help out if we need you.';
 
   const opp = (...pts) => pts.map(([x, y], i) => ({ id: 'X' + (i + 1), x, y }));
+
+  // Coach: in the corner plays the two D work as a pair, so the net-front D's feedback says so.
+  const PARTNER_ON_PUCK = {
+    perfect: 'Guarding the house! Your D partner is on the puck, so you protect the front of the net.',
+    miss: 'Your D partner is pressuring the puck, so your job is to protect the front of the net.',
+    wrongSide: 'Your D partner is pressuring the puck. You protect the front of the net: get between their player and the net!'
+  };
+
+  // Coach: puck behind the net means their player in front is open, so the center comes down to help.
+  const HELP_IN_FRONT = {
+    perfect: 'Great help! Their player in front was open, and you picked them up between them and the net.',
+    miss: "There's an open player in front of our net. Center, come down and help: get between them and the net.",
+    wrongSide: 'Open player in front! Center, come help: get between them and the net, not behind them.'
+  };
+  // Puck on the far half-wall: the wing has their D at the point, and protects the middle so the carrier can't come off the wall.
+  const POINT_AND_MIDDLE = {
+    perfect: "Two jobs, both done! You've got their D at the point, and you're protecting the middle so their player can't come off the wall.",
+    miss: "You have two jobs: their D at the point, and the middle of the ice. Don't let their player come off the wall into the middle.",
+    tooHigh: "Too high! You've got their D, but their player can come off the wall into the middle. Come in and protect the middle.",
+    tooDeep: 'Too deep! Get up to the high slot. You still have their D at the point, and you stop their player coming off the wall into the middle.',
+    tooWide: "Come to the middle! If their player comes off the wall, you're the one who stops them. And you still have their D.",
+    onCover: 'Good job, their D is your player! But come in a bit more. You also protect the middle, so their player can\'t come off the wall.'
+  };
 
   const LAYOUTS = {
     // carrier deep in our left corner.
@@ -378,9 +422,9 @@
       ours: {
         LD: { x: 15.5, y: 12.5, role: 'puckD', check: 'X1', r: 4.5 },
         C: { x: 26, y: 21.5, role: 'lowC', check: 'X3', r: 5 },
-        RD: { x: 39, y: 21.5, role: 'netFrontD', check: 'X2', r: 4.5 },
-        LW: { x: 16, y: 55, role: 'strongW', r: 9 },
-        RW: { x: 50, y: 45, role: 'weakW', r: 9 }
+        RD: { x: 39, y: 21.5, role: 'netFrontD', check: 'X2', r: 4.5, say: PARTNER_ON_PUCK },
+        LW: { x: 16, y: 55, role: 'strongW', r: 9, cover: 'X4' },
+        RW: { x: 50, y: 45, role: 'weakW', r: 9, cover: 'X5' }
       }
     },
     // carrier behind our net; our RD is with him.
@@ -390,10 +434,10 @@
       puck: { x: 42.5, y: 4 }, goalie: { x: 44.5, y: 12.5 },
       ours: {
         RD: { x: 46.5, y: 7, role: 'belowLineD', check: 'X1', r: 4 },
-        LD: { x: 36.5, y: 13.5, role: 'farPostD', check: 'X2', r: 4.5 },
-        C: { x: 43.5, y: 21.5, role: 'slotC', check: 'X3', r: 5 },
-        LW: { x: 25, y: 44, role: 'pulledInW', r: 7 },
-        RW: { x: 59, y: 42, role: 'pulledInW', r: 7 }
+        LD: { x: 36.5, y: 13.5, role: 'farPostD', check: 'X2', r: 4.5, say: PARTNER_ON_PUCK },
+        C: { x: 43.5, y: 21.5, role: 'slotC', check: 'X3', r: 5, say: HELP_IN_FRONT },
+        LW: { x: 25, y: 44, role: 'pulledInW', r: 7, cover: 'X4' },
+        RW: { x: 59, y: 42, role: 'pulledInW', r: 7, cover: 'X5' }
       }
     },
     // carrier in our right corner.
@@ -404,9 +448,9 @@
       ours: {
         RD: { x: 70.5, y: 13, role: 'puckD', check: 'X1', r: 4.5 },
         C: { x: 59, y: 23, role: 'lowC', check: 'X3', r: 5 },
-        LD: { x: 47, y: 22, role: 'netFrontD', check: 'X2', r: 4.5 },
-        RW: { x: 69, y: 54, role: 'strongW', r: 9 },
-        LW: { x: 37, y: 46, role: 'weakW', r: 9 }
+        LD: { x: 47, y: 22, role: 'netFrontD', check: 'X2', r: 4.5, say: PARTNER_ON_PUCK },
+        RW: { x: 69, y: 54, role: 'strongW', r: 9, cover: 'X4' },
+        LW: { x: 37, y: 46, role: 'weakW', r: 9, cover: 'X5' }
       }
     },
     // carrier below the goal line, left of our net.
@@ -416,10 +460,10 @@
       puck: { x: 31.5, y: 7 }, goalie: { x: 39.5, y: 12.5 },
       ours: {
         LD: { x: 33, y: 10.5, role: 'belowLineD', check: 'X1', r: 4 },
-        RD: { x: 48.5, y: 15, role: 'farPostD', check: 'X2', r: 4.5 },
-        C: { x: 40.5, y: 24.5, role: 'slotC', check: 'X3', r: 5 },
-        LW: { x: 24, y: 44, role: 'pulledInW', r: 7 },
-        RW: { x: 58, y: 44, role: 'pulledInW', r: 7 }
+        RD: { x: 48.5, y: 15, role: 'farPostD', check: 'X2', r: 4.5, say: PARTNER_ON_PUCK },
+        C: { x: 40.5, y: 24.5, role: 'slotC', check: 'X3', r: 5, say: HELP_IN_FRONT },
+        LW: { x: 24, y: 44, role: 'pulledInW', r: 7, cover: 'X4' },
+        RW: { x: 58, y: 44, role: 'pulledInW', r: 7, cover: 'X5' }
       }
     },
     // carrier up the right half-wall.
@@ -432,7 +476,7 @@
         RD: { x: 66.5, y: 13.5, role: 'lowD', check: 'X2', r: 5 },
         C: { x: 55, y: 32, role: 'slotC', r: 9 },
         LD: { x: 47.5, y: 17, role: 'netFrontD', check: 'X3', r: 4.5 },
-        LW: { x: 37, y: 46, role: 'weakW', r: 9 }
+        LW: { x: 37, y: 46, role: 'weakW', r: 9, cover: 'X5', say: POINT_AND_MIDDLE }
       }
     },
     // their D has the puck at the left point.
@@ -445,7 +489,7 @@
         LD: { x: 26.5, y: 19.5, role: 'lowD', check: 'X3', r: 5 },
         RD: { x: 44, y: 18, role: 'netFrontD', check: 'X4', r: 4.5 },
         C: { x: 43.5, y: 31, role: 'slotC', check: 'X5', r: 5 },
-        RW: { x: 54, y: 48, role: 'weakW', r: 9 }
+        RW: { x: 54, y: 48, role: 'weakW', r: 9, cover: 'X2' }
       }
     },
     // a 1-on-1 rush down the right side.
@@ -485,7 +529,7 @@
         RD: { x: 55.5, y: 20.5, role: 'lowD', check: 'X3', r: 5 },
         LD: { x: 42, y: 18.5, role: 'netFrontD', check: 'X4', r: 4.5 },
         C: { x: 40.5, y: 32.5, role: 'slotC', check: 'X5', r: 5 },
-        LW: { x: 33, y: 48, role: 'weakW', r: 9 }
+        LW: { x: 33, y: 48, role: 'weakW', r: 9, cover: 'X2' }
       }
     },
     // they rush up the left side and our LD steps up.
@@ -509,10 +553,10 @@
       puck: { x: 55.5, y: 9.5 }, goalie: { x: 45.5, y: 12.5 },
       ours: {
         RD: { x: 53.5, y: 11.5, role: 'belowLineD', check: 'X1', r: 4 },
-        LD: { x: 36, y: 15, role: 'farPostD', check: 'X2', r: 4.5 },
-        C: { x: 45, y: 29, role: 'slotC', check: 'X3', r: 5 },
-        RW: { x: 60, y: 40, role: 'pulledInW', r: 7 },
-        LW: { x: 27, y: 42, role: 'pulledInW', r: 7 }
+        LD: { x: 36, y: 15, role: 'farPostD', check: 'X2', r: 4.5, say: PARTNER_ON_PUCK },
+        C: { x: 45, y: 29, role: 'slotC', check: 'X3', r: 5, say: HELP_IN_FRONT },
+        RW: { x: 60, y: 40, role: 'pulledInW', r: 7, cover: 'X4' },
+        LW: { x: 27, y: 42, role: 'pulledInW', r: 7, cover: 'X5' }
       }
     },
     // we're forechecking in their zone.
@@ -529,6 +573,19 @@
         F3: { x: 44, y: 153, role: 'forecheckF3', r: 7, lane: { from: { x: 16, y: 151 }, to: { x: 46, y: 153 } } }
       }
     },
+    // The forecheck after their D reverses the puck to the other corner: the forwards rotate to the new side.
+    forecheckReverse: {
+      view: 'forecheck',
+      opponents: opp([75, 188], [10, 188], [4, 162], [45, 172], [80, 162]),
+      puck: { x: 72.5, y: 186.5 }, goalie: null,
+      ours: {
+        LD: { x: 21, y: 129 },
+        RD: { x: 71, y: 129 },
+        F1: { x: 70, y: 183, role: 'forecheckF1', check: 'X1', r: 6 },
+        F2: { x: 75.5, y: 167, role: 'forecheckF2', r: 7 },
+        F3: { x: 41, y: 153, role: 'forecheckF3', r: 7, lane: { from: { x: 69, y: 151 }, to: { x: 39, y: 153 } } }
+      }
+    },
     // carrier up the left half-wall.
     leftHalfWall: {
       view: 'dzone',
@@ -539,7 +596,7 @@
         LD: { x: 17, y: 14.5, role: 'lowD', check: 'X2', r: 5 },
         C: { x: 30, y: 32, role: 'slotC', r: 9 },
         RD: { x: 41.5, y: 18.5, role: 'netFrontD', check: 'X3', r: 4.5 },
-        RW: { x: 48, y: 46, role: 'weakW', r: 9 }
+        RW: { x: 48, y: 46, role: 'weakW', r: 9, cover: 'X5', say: POINT_AND_MIDDLE }
       }
     }
   };
@@ -571,20 +628,33 @@
       task: "You're the center, racing back. Where do you go?" },
     { n: 8, period: 2, type: 'placeAll', layout: 'forecheck', order: ['F1', 'F2', 'F3'],
       situation: "We're forechecking! F1 is first in, F2 is second, F3 is third.", task: 'Place all three forwards. One at a time!' },
+    // Coach: the forwards keep their spots from play 8; the kid picks each forward's new job, then places them.
+    { n: 9, period: 2, type: 'rotate', layout: 'forecheckReverse', from: 'forecheck', order: ['F1', 'F2', 'F3'],
+      was: { F1: 'F3', F2: 'F1', F3: 'F2' },
+      situation: 'They moved the puck to the other corner! Your forwards switch jobs.',
+      task: 'Tap who does each job now, then place them.',
+      pickRight: {
+        F1: 'Right call! Your old F3 was high in the middle, closest to the new puck. Now they go hard as F1.',
+        F2: 'Right call! Your old F1 comes out of the corner and supports on the wall as the new F2.'
+      },
+      pickWrong: {
+        F1: 'Look again: your old F3, high in the middle, is closest to the new puck. They become F1.',
+        F2: 'Look again: your old F1 comes out of the corner to support. They become F2.'
+      } },
     // 3rd period: the puck moves around our zone
-    { n: 9, period: 3, type: 'place1', layout: 'rightHalfWall', order: ['LW'],
+    { n: 10, period: 3, type: 'place1', layout: 'rightHalfWall', order: ['LW'],
       situation: "The puck's up the right side boards.", task: 'Place your LEFT WING.' },
-    { n: 10, period: 3, type: 'spot', layout: 'leftPoint', wrong: { pos: 'LW', x: 8, y: 24 },
+    { n: 11, period: 3, type: 'spot', layout: 'leftPoint', wrong: { pos: 'LW', x: 8, y: 24 },
       situation: 'Their D has the puck at the left point.', task: SPOT_IT,
       pickRight: 'Good eye! That wing is way too deep. The shooter is wide open.',
       pickWrong: "Look again: who's supposed to pressure the point?" },
-    { n: 11, period: 3, type: 'placeAll', layout: 'rightPoint', order: ['RW', 'LD', 'RD', 'C', 'LW'],
+    { n: 12, period: 3, type: 'placeAll', layout: 'rightPoint', order: ['RW', 'LD', 'RD', 'C', 'LW'],
       situation: "The puck's at the right point.", task: ALL_FIVE },
-    { n: 12, period: 3, type: 'spot', layout: 'rightBelowLine', wrong: { pos: 'RD', x: 63, y: 5.5 },
+    { n: 13, period: 3, type: 'spot', layout: 'rightBelowLine', wrong: { pos: 'RD', x: 63, y: 5.5 },
       situation: 'Their player is trying to walk out from beside our net.', task: SPOT_IT,
       pickRight: 'Good eye! That D is on the wrong side of the puck.',
       pickWrong: "Look again: which D isn't between the puck and the net?" },
-    { n: 13, period: 3, type: 'placeAll', layout: 'leftHalfWall', order: ['LW', 'RD', 'LD', 'C', 'RW'],
+    { n: 14, period: 3, type: 'placeAll', layout: 'leftHalfWall', order: ['LW', 'RD', 'LD', 'C', 'RW'],
       situation: "Last play! The puck's up the left side boards.", task: ALL_FIVE }
   ];
 
@@ -602,7 +672,7 @@
     { min: 0, name: 'Rookie' }
   ];
 
-  const POINTS = { perfect: 100, nice: 60, close: 30, miss: 0, spotPick: 50 };
+  const POINTS = { perfect: 100, nice: 60, close: 30, miss: 0, spotPick: 50, rotatePick: 100 };
 
   // Zone coverage jobs (coach): right anywhere on the line from their check to the front of the net,
   // on the goal side. Pressure jobs and the net-front D keep an exact spot.
@@ -611,15 +681,16 @@
   // The team leaderboard's web address (from leaderboard/SETUP.md). Empty means it isn't connected yet.
   const LEADERBOARD_URL = 'https://script.google.com/macros/s/AKfycbzXqYGLdQ4EXzYRUjhc-Kfol9BIIsKDtrqcygqObzw8m3ZFCe-sP4FnXFa1Mobo38IL/exec';
 
-  HTG.data = { RINK, VIEWS, ROLES, WRONG_SIDE_LINE, LAYOUTS, PLAYS, PERIODS, TITLES, POINTS, LANE_ROLES, LEADERBOARD_URL };
+  HTG.data = { RINK, VIEWS, ROLES, WRONG_SIDE_LINE, ON_COVER_LINE, LAYOUTS, PLAYS, PERIODS, TITLES, POINTS, LANE_ROLES, LEADERBOARD_URL };
 })();
 </script>
 <script id="htg-logic">
 // Pure scoring rules (spec §7). No DOM: tests load this block directly.
 (function () {
   const HTG = globalThis.HTG = globalThis.HTG || {};
-  const { RINK, ROLES, WRONG_SIDE_LINE, TITLES, POINTS } = HTG.data;
+  const { RINK, ROLES, WRONG_SIDE_LINE, ON_COVER_LINE, TITLES, POINTS } = HTG.data;
   const TIER_ORDER = ['perfect', 'nice', 'close', 'miss'];
+  const COVER_RADIUS = 8; // ft: this close to the D a wing covers counts as on them
 
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
@@ -650,21 +721,27 @@
   }
 
   // A `lane` ({from, to}) scores by distance to that line instead of to the single target spot.
-  function scorePlacement({ placed, target, check, net, deepSign, lane = null }) {
+  // A `cover` is the D a wing covers: a spot right on them is never worse than close.
+  function scorePlacement({ placed, target, check, net, deepSign, lane = null, cover = null }) {
     const distance = lane ? distToSegment(placed, lane.from, lane.to) : dist(placed, target);
     let tier = tierFor(distance, target.r);
     const wrongSide = check ? isWrongSide(placed, check, net) : false;
     if (wrongSide && TIER_ORDER.indexOf(tier) < TIER_ORDER.indexOf('close')) tier = 'close';
-    const direction = tier !== 'perfect' && !wrongSide ? missDirection(placed, target, deepSign) : null;
-    return { tier, points: POINTS[tier], distance, wrongSide, direction };
+    const onCover = tier !== 'perfect' && cover ? dist(placed, cover) <= COVER_RADIUS : false;
+    if (onCover && TIER_ORDER.indexOf(tier) > TIER_ORDER.indexOf('close')) tier = 'close';
+    const direction = tier !== 'perfect' && !wrongSide && !onCover ? missDirection(placed, target, deepSign) : null;
+    return { tier, points: POINTS[tier], distance, wrongSide, onCover, direction };
   }
 
-  function coachLine(result, roleKey) {
+  // `say` holds a play's own lines for this target, which win over the role's.
+  function coachLine(result, roleKey, say = {}) {
     const role = ROLES[roleKey];
-    if (result.tier === 'perfect') return role.perfect;
-    if (result.wrongSide) return WRONG_SIDE_LINE;
-    if (result.direction && role[result.direction]) return role[result.direction];
-    return role.miss;
+    if (result.tier === 'perfect') return say.perfect || role.perfect;
+    if (result.wrongSide) return say.wrongSide || role.wrongSide || WRONG_SIDE_LINE;
+    if (result.onCover) return say.onCover || ON_COVER_LINE;
+    const directional = result.direction && (say[result.direction] || role[result.direction]);
+    if (directional) return directional;
+    return say.miss || role.miss;
   }
 
   function scoreSpotPick(tappedPos, wrongPos) {
@@ -672,9 +749,16 @@
     return { correct, points: correct ? POINTS.spotPick : 0 };
   }
 
+  function scoreRotatePick(tappedPos, rightPos) {
+    const correct = tappedPos === rightPos;
+    return { correct, points: correct ? POINTS.rotatePick : 0 };
+  }
+
   function maxScore(plays) {
     return plays.reduce((sum, play) => {
       if (play.type === 'spot') return sum + POINTS.spotPick + POINTS.perfect;
+      // The last forward left in a rotation takes the last job, so there's one pick fewer than players.
+      if (play.type === 'rotate') return sum + (play.order.length - 1) * POINTS.rotatePick + play.order.length * POINTS.perfect;
       return sum + play.order.length * POINTS.perfect * (play.double ? 2 : 1);
     }, 0);
   }
@@ -759,7 +843,7 @@
 
   HTG.logic = {
     dist, distToSegment, tierFor, isWrongSide, missDirection, scorePlacement, coachLine,
-    scoreSpotPick, maxScore, titleFor, nextStreak, clampToRink, makeStore,
+    scoreSpotPick, scoreRotatePick, maxScore, titleFor, nextStreak, clampToRink, makeStore,
     checkPassword, TEAM_PASSWORD_HASH, cleanName, cleanNumber, findRank
   };
 })();
@@ -782,8 +866,8 @@
   function targetFor(play, pos) {
     const layout = LAYOUTS[play.layout];
     const t = layout.ours[pos];
-    const check = t.check ? layout.opponents.find(o => o.id === t.check) : null;
-    return { x: t.x, y: t.y, r: t.r, role: t.role, lane: t.lane || null, laneTo: t.laneTo || null, check: check ? { x: check.x, y: check.y } : null };
+    const at = id => { const o = id && layout.opponents.find(o => o.id === id); return o ? { x: o.x, y: o.y } : null; };
+    return { x: t.x, y: t.y, r: t.r, role: t.role, say: t.say || {}, lane: t.lane || null, laneTo: t.laneTo || null, check: at(t.check), cover: at(t.cover) };
   }
 
   const activePos = state => Object.keys(state.positions).find(p => state.positions[p].status === 'active');
@@ -799,6 +883,13 @@
     let phase = 'place';
     if (play.type === 'spot') {
       positions[play.wrong.pos] = { x: play.wrong.x, y: play.wrong.y, status: 'wrong' };
+      phase = 'pick';
+    } else if (play.type === 'rotate') {
+      // The forwards start where they finished the play before, each still wearing their old job.
+      for (const pos of play.order) {
+        const was = LAYOUTS[play.from].ours[pos];
+        positions[pos] = { x: was.x, y: was.y, status: 'old', label: pos };
+      }
       phase = 'pick';
     } else {
       const waiting = play.type === 'placeAll' ? play.order : [play.order[0]];
@@ -817,9 +908,24 @@
   function pick(state, pos) {
     if (state.screen !== 'play' || state.phase !== 'pick' || !state.positions[pos]) return state;
     const play = PLAYS[state.playIndex];
+    if (play.type === 'rotate') {
+      if (state.positions[pos].status !== 'old') return state;
+      const job = play.order[state.step];
+      const right = play.was[job];
+      const { correct, points } = L.scoreRotatePick(pos, right);
+      const line = correct ? play.pickRight[job] : play.pickWrong[job];
+      return addPoints({ ...state, phase: 'feedback', last: { kind: 'pick', tapped: pos, right, correct, points, line } }, points);
+    }
     const { correct, points } = L.scoreSpotPick(pos, play.wrong.pos);
     const line = correct ? play.pickRight : play.pickWrong;
-    return addPoints({ ...state, phase: 'feedback', last: { kind: 'pick', tapped: pos, correct, points, line } }, points);
+    return addPoints({ ...state, phase: 'feedback', last: { kind: 'pick', tapped: pos, right: play.wrong.pos, correct, points, line } }, points);
+  }
+
+  // A rotating forward takes their new job and skates from where they were (`from`).
+  function takeJob(state, pos, job) {
+    const { x, y } = state.positions[pos];
+    const positions = { ...state.positions, [pos]: { x, y, status: 'active', label: job, from: { x, y } } };
+    return { ...state, phase: 'place', positions, pending: null };
   }
 
   function lock(state) {
@@ -828,22 +934,22 @@
     // In a spot-it play the player has to be moved off the wrong spot before it can be locked.
     if (play.type === 'spot' && state.pending.x === play.wrong.x && state.pending.y === play.wrong.y) return state;
     const pos = activePos(state);
-    const target = targetFor(play, pos);
+    const target = targetFor(play, state.positions[pos].label || pos);
     const lane = target.lane
       || (target.check && LANE_ROLES.includes(target.role) ? { from: target.check, to: target.laneTo || RINK.netFront } : null);
     const result = L.scorePlacement({
-      placed: state.pending, target, check: target.check, lane,
+      placed: state.pending, target, check: target.check, cover: target.cover, lane,
       net: RINK.ourNet, deepSign: VIEWS[LAYOUTS[play.layout].view].deepSign
     });
     const { streak, hatTrick } = L.nextStreak(state.streak, result.tier);
     const points = result.points * (play.double ? 2 : 1);
     const last = {
       kind: 'place', pos, from: state.pending, tier: result.tier, points,
-      wrongSide: result.wrongSide, direction: result.direction, line: L.coachLine(result, target.role), hatTrick
+      wrongSide: result.wrongSide, direction: result.direction, line: L.coachLine(result, target.role, target.say), hatTrick
     };
     // A perfect spot stays where the kid put it; anything else moves to the right spot so they can see it.
     const spot = result.tier === 'perfect' ? state.pending : { x: target.x, y: target.y };
-    const positions = { ...state.positions, [pos]: { x: spot.x, y: spot.y, status: 'ice' } };
+    const positions = { ...state.positions, [pos]: { ...state.positions[pos], x: spot.x, y: spot.y, status: 'ice' } };
     return addPoints({ ...state, phase: 'feedback', positions, pending: null, streak, last }, points);
   }
 
@@ -852,6 +958,7 @@
     if (state.screen !== 'play' || state.phase !== 'feedback') return state;
     const play = PLAYS[state.playIndex];
     if (state.last.kind === 'pick') {
+      if (play.type === 'rotate') return takeJob(state, state.last.right, play.order[state.step]);
       const pos = play.wrong.pos;
       const positions = { ...state.positions, [pos]: { ...state.positions[pos], status: 'active' } };
       return { ...state, phase: 'place', positions, pending: { x: play.wrong.x, y: play.wrong.y } };
@@ -859,6 +966,11 @@
     if (play.order && state.step + 1 < play.order.length) {
       const step = state.step + 1;
       const pos = play.order[step];
+      if (play.type === 'rotate') {
+        const left = Object.keys(state.positions).filter(p => state.positions[p].status === 'old');
+        // The last forward left has only one job to take, so there's nothing to pick.
+        return left.length > 1 ? { ...state, step, phase: 'pick', pending: null } : takeJob({ ...state, step }, left[0], pos);
+      }
       const positions = { ...state.positions, [pos]: { ...state.positions[pos], status: 'active' } };
       return { ...state, step, phase: 'place', positions, pending: null };
     }
@@ -1190,6 +1302,10 @@
   const bannerLayer = htmlEl('div', 'banner-layer', stage);
   drawRink(rink);
   const targetLayer = svgEl('g', { class: 'targets' }, rink);
+  const trailLayer = svgEl('g', { class: 'trails' }, rink);
+  const arrow = svgEl('marker', { id: 'trail-head', viewBox: '0 0 10 10', refX: 6, refY: 5, markerWidth: 4, markerHeight: 4, orient: 'auto' },
+    svgEl('defs', {}, rink));
+  svgEl('path', { class: 'trail-head', d: 'M0 0L10 5L0 10z' }, arrow);
   const otherLayer = svgEl('g', { class: 'others' }, rink);
   const ourLayer = svgEl('g', { class: 'ours' }, rink);
   // One token per player in the current play (usually LD, RD, C, LW, RW; F1-F3 on the forecheck).
@@ -1289,10 +1405,33 @@
     }
     for (const pos of Object.keys(ourTokens)) {
       const g = ourTokens[pos];
+      const st = state.positions[pos];
       const spot = drawnSpot(state, pos);
       g.style.display = spot ? '' : 'none';
-      g.classList.toggle('active', !!state.positions[pos] && state.positions[pos].status === 'active');
+      g.classList.toggle('active', !!st && st.status === 'active');
+      g.classList.toggle('old', !!st && st.status === 'old');
+      g.querySelector('text').textContent = (st && st.label) || pos;
       if (spot) placeToken(g, spot.x, spot.y, discFt);
+    }
+    drawTrails(state);
+  }
+
+  // A rotating forward leaves a ghost on their old spot and a dashed arrow to where they're going.
+  function drawTrails(state) {
+    trailLayer.textContent = '';
+    for (const pos of Object.keys(ourTokens)) {
+      const st = state.positions[pos];
+      const to = st && st.from && drawnSpot(state, pos);
+      if (!to) continue;
+      svgEl('circle', { class: 'ghost', cx: st.from.x, cy: sy(st.from.y), r: discFt }, trailLayer);
+      const dx = to.x - st.from.x, dy = to.y - st.from.y, len = Math.hypot(dx, dy);
+      if (len < discFt * 3) continue;
+      // Stop the arrow at the edge of the player so its head shows.
+      const k = (len - discFt * 1.25) / len;
+      svgEl('line', {
+        class: 'trail', 'marker-end': 'url(#trail-head)',
+        x1: st.from.x, y1: sy(st.from.y), x2: st.from.x + dx * k, y2: sy(st.from.y + dy * k)
+      }, trailLayer);
     }
   }
 
@@ -1300,6 +1439,11 @@
     p.type === 'spot' && state.pending && state.pending.x === p.wrong.x && state.pending.y === p.wrong.y;
 
   function taskFor(state, p) {
+    if (p.type === 'rotate') {
+      const job = p.order[state.step];
+      const picking = state.phase === 'pick' || (state.phase === 'feedback' && state.last.kind === 'pick');
+      return picking ? `Who's your new ${job}? Tap them.` : `Place your new ${job}.`;
+    }
     if (p.type === 'spot') {
       const picking = state.phase === 'pick' || (state.phase === 'feedback' && state.last.kind === 'pick');
       return picking ? p.task : 'Now click where they should be.';
@@ -1310,16 +1454,23 @@
 
   function hintFor(state, p) {
     if (state.phase === 'feedback') return state.last.line;
+    if (state.phase === 'pick' && p.type === 'rotate') {
+      return `Your forwards are still on their old spots (dashed). Who should be the new ${p.order[state.step]}?`;
+    }
     if (state.phase === 'pick') return p.situation + ' Look carefully at your blue players.';
     if (stillOnWrongSpot(state, p)) return 'Click the ice where the glowing player should be, then hit LOCK IT IN.';
     if (state.pending) return 'Happy with that spot? Hit LOCK IT IN. (Or click somewhere else to move them.)';
+    if (p.type === 'rotate') {
+      const job = p.order[state.step];
+      return `Your old ${p.was[job]} is the new ${job}. Click the ice where they should go.`;
+    }
     if (p.type === 'placeAll' && state.step === 0) return p.task + ' Click the ice where each player should go.';
     return 'Click the ice where your player should go.';
   }
 
   function renderBench(state, p) {
     benchEl.textContent = '';
-    if (p.type === 'spot') return;
+    if (p.type === 'spot' || p.type === 'rotate') return;
     for (const pos of p.order) {
       const st = state.positions[pos];
       if (!st || st.status === 'ice') continue;
@@ -1335,7 +1486,7 @@
     const p = PLAYS[state.playIndex];
     layoutTokens(state);
     taskLabel.textContent = (p.double ? '★ DOUBLE POINTS  ·  ' : '')
-      + (p.type === 'placeAll' ? `${p.situation}  ·  PLAYER ${state.step + 1} OF ${p.order.length}` : p.situation);
+      + (p.type === 'placeAll' || p.type === 'rotate' ? `${p.situation}  ·  PLAYER ${state.step + 1} OF ${p.order.length}` : p.situation);
     taskText.textContent = taskFor(state, p);
     renderBench(state, p);
     coachText.textContent = hintFor(state, p);
@@ -1413,10 +1564,10 @@
     const last = state.last;
     const p = PLAYS[state.playIndex];
     if (last.kind === 'pick') {
-      const culprit = ourTokens[p.wrong.pos];
+      const culprit = ourTokens[last.right];
       culprit.classList.add('lit');
       if (last.correct) {
-        showBanner(`GOOD EYE! +${last.points}`, 'pick');
+        showBanner(`${p.type === 'rotate' ? 'RIGHT CALL!' : 'GOOD EYE!'} +${last.points}`, 'pick');
         sfx('cheer');
       } else {
         showBanner('WHISTLE!', 'miss');
@@ -1452,9 +1603,11 @@
     const p = clientToRink(cx, cy);
     const reach = discFt + PICK_SLOP_PX / pxPerFoot();
     let best = null, bestDist = Infinity;
+    const rotating = PLAYS[state.playIndex].type === 'rotate';
     for (const pos of Object.keys(ourTokens)) {
       const spot = drawnSpot(state, pos);
-      if (!spot) continue;
+      // In a rotation only forwards still on their old spots are a choice.
+      if (!spot || (rotating && state.positions[pos].status !== 'old')) continue;
       const d = Math.hypot(spot.x - p.x, spot.y - p.y);
       if (d < bestDist) { best = pos; bestDist = d; }
     }
