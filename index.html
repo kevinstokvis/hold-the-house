@@ -1,0 +1,1502 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hold the House</title>
+<meta name="description" content="A hockey game for 9 and 10 year olds: put your players in the right defensive spot.">
+<meta property="og:title" content="Hold the House">
+<meta property="og:description" content="Hockey positioning game: put your players in the right defensive spot!">
+<meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hold the House">
+<meta name="theme-color" content="#0a1226">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a1226; --navy-2: #0d1730; --navy-3: #26324d;
+    --ice: #eef5fb; --line-red: #d62839; --line-blue: #2457c5; --crease: #9fd0ff;
+    --us: #1e6bff; --them: #2b2f36; --them-rim: #ff4d5e; --them-text: #ffb3ba;
+    --gold: #ffb627; --text: #ffffff; --muted: #9fb7e6;
+    --font-display: 'Bebas Neue', Impact, 'Arial Narrow', sans-serif;
+    --font-body: 'Barlow Condensed', 'Arial Narrow', Arial, sans-serif;
+    --board-h: 52px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  html { touch-action: manipulation; }
+  body {
+    background: radial-gradient(120% 90% at 30% 0%, #1b2d55 0%, var(--navy) 55%, #050912 100%) fixed, var(--navy);
+    color: var(--text); font-family: var(--font-body); font-weight: 600;
+    -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
+    overflow-x: hidden;
+  }
+  button { font: inherit; color: inherit; }
+  .nojs { max-width: 32em; margin: 15vh auto 0; padding: 0 16px; text-align: center; font-size: 20px; line-height: 1.35; color: #fff; }
+  .nojs h1 { font-family: var(--font-display); font-weight: 400; font-size: 56px; color: #ffb627; margin: 0 0 12px; }
+  #app { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+
+  /* Scoreboard */
+  .board {
+    height: var(--board-h); flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px;
+    background: linear-gradient(var(--navy-2), #070c19); border-bottom: 2px solid var(--line-red);
+    font-family: var(--font-display); letter-spacing: .08em; font-size: 20px;
+  }
+  .board .light { width: 14px; height: 14px; border-radius: 50%; background: #5a1a1f; flex: none; }
+  .board .light.on { background: #ff2b2b; box-shadow: 0 0 12px 4px #ff2b2b; }
+  .board .where { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .score { color: var(--gold); text-shadow: 0 0 8px rgba(255, 182, 39, .7); white-space: nowrap; }
+  .board .mute {
+    background: none; border: 1px solid var(--navy-3); border-radius: 8px; width: 40px; height: 36px;
+    display: grid; place-items: center; cursor: pointer; flex: none;
+  }
+  .board .mute svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+  /* Play screen */
+  #screen { flex: 1; display: flex; min-height: 0; }
+  .play {
+    flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    gap: 16px; padding: 12px 16px 16px; min-height: 0;
+  }
+  .stage {
+    position: relative; min-height: 0;
+    height: calc(100vh - var(--board-h) - 28px); height: calc(100dvh - var(--board-h) - 28px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .placing #rink { cursor: crosshair; }
+  #rink { display: block; overflow: hidden; filter: drop-shadow(0 0 14px rgba(120, 170, 255, .35)); }
+  .panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding-top: 4px; }
+  .panel .task { font-family: var(--font-display); font-size: 30px; line-height: 1.05; letter-spacing: .03em; }
+  .panel .task small { display: block; font-size: 17px; color: var(--muted); letter-spacing: .08em; margin-bottom: 4px; }
+  .bench { display: flex; flex-wrap: wrap; gap: 10px; min-height: 56px; align-items: center; }
+  .bench:empty { display: none; }
+  .bench-tok {
+    width: 56px; height: 56px; border-radius: 50%; border: 3px solid #fff; background: var(--us);
+    font-family: var(--font-display); font-size: 22px; letter-spacing: .04em;
+    display: grid; place-items: center;
+  }
+  .bench-tok.waiting { opacity: .35; }
+  .bench-tok.active { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255, 182, 39, .35), 0 0 18px rgba(255, 182, 39, .6); }
+  .coach {
+    background: rgba(255, 255, 255, .06); border-left: 5px solid var(--gold); border-radius: 4px;
+    padding: 12px 14px; font-size: 19px; line-height: 1.25;
+  }
+  .coach .who { display: block; color: var(--gold); font-family: var(--font-display); letter-spacing: .1em; font-size: 17px; margin-bottom: 4px; }
+  .primary {
+    margin-top: auto; min-height: 60px; border: 0; border-radius: 10px; cursor: pointer;
+    background: linear-gradient(180deg, #ff4d5e, var(--line-red)); color: #fff;
+    font-family: var(--font-display); font-size: 30px; letter-spacing: .08em;
+    box-shadow: 0 6px 0 #8f1622, 0 10px 24px rgba(214, 40, 57, .4);
+  }
+  .primary:disabled { background: var(--navy-3); color: #6f7fa3; box-shadow: none; cursor: default; }
+
+  /* Rink tokens (drawn at radius 10 and scaled to the current disc radius) */
+  .tok circle { stroke-width: 1.6; }
+  .tok text { font-family: var(--font-display); font-size: 9.5px; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+  .tok.us circle { fill: var(--us); stroke: #fff; }
+  .tok.us text { fill: #fff; }
+  .tok.them circle { fill: var(--them); stroke: var(--them-rim); }
+  .tok.them text { fill: var(--them-text); }
+  .tok.goalie circle { fill: var(--gold); stroke: #fff; }
+  .tok.goalie text { fill: #111; }
+  .tok.active circle { stroke: var(--gold); stroke-width: 2.4; }
+  .tok circle.halo { fill: var(--gold); stroke: none; opacity: 0; transition: opacity .2s; }
+  .tok.active circle.halo, .tok.lit circle.halo { opacity: .4; }
+  .tok.lit circle:not(.halo) { stroke: var(--gold); stroke-width: 2.6; }
+  .pick-phase .ours .tok { cursor: pointer; }
+  .ours .tok.slide { transition: transform .6s cubic-bezier(.3, .7, .2, 1); }
+  .tok .body.shake { animation: shake .5s ease-in-out 2; }
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3.5px); } 75% { transform: translateX(3.5px); } }
+  .puck { fill: #111; stroke: #fff; stroke-width: 2.5; }
+  .target-ring { fill: rgba(255, 182, 39, .18); stroke: var(--gold); stroke-width: .5; stroke-dasharray: 1.2 .8;
+    transform-box: fill-box; transform-origin: center; animation: ring-pulse 1.2s ease-in-out infinite; }
+  @keyframes ring-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.18); opacity: .7; } }
+
+  /* Feedback banners sweep across the rink like a TV graphic */
+  .banner-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+  .banner {
+    position: absolute; left: -6%; right: -6%; top: 38%; padding: 10px 0; text-align: center; white-space: nowrap;
+    font-family: var(--font-display); font-size: clamp(36px, 6.5vw, 78px); letter-spacing: .06em; color: #fff;
+    text-shadow: 0 3px 0 rgba(0, 0, 0, .35); transform: translateX(-115%) skewY(-6deg);
+    animation: sweep 1.8s cubic-bezier(.2, .9, .2, 1) forwards;
+  }
+  .banner.perfect { background: linear-gradient(90deg, var(--line-red), #ff4d5e 60%, var(--gold)); box-shadow: 0 0 44px rgba(255, 77, 94, .65); }
+  .banner.nice { background: linear-gradient(90deg, #1546c4, var(--us) 60%, #6fa0ff); box-shadow: 0 0 36px rgba(30, 107, 255, .55); }
+  .banner.close { background: linear-gradient(90deg, #b8620b, #f08c1a 60%, var(--gold)); }
+  .banner.miss { background: repeating-linear-gradient(90deg, #111 0 34px, #f4f4f4 34px 68px); color: #fff;
+    text-shadow: -3px -3px 0 #111, 3px -3px 0 #111, -3px 3px 0 #111, 3px 3px 0 #111; }
+  .banner.pick { background: linear-gradient(90deg, #0f7a4a, #19b36b 60%, #7ef0b6); }
+  .banner.hattrick { background: linear-gradient(90deg, var(--gold), #ffe08a 50%, var(--gold)); color: #111; text-shadow: none; box-shadow: 0 0 50px rgba(255, 182, 39, .8); }
+  @keyframes sweep {
+    0% { transform: translateX(-115%) skewY(-6deg); }
+    16%, 72% { transform: translateX(0) skewY(-6deg); }
+    100% { transform: translateX(115%) skewY(-6deg); }
+  }
+  @keyframes fade { 0% { opacity: 0; } 15%, 75% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .banner { transform: skewY(-6deg); animation: fade 1.8s ease forwards; }
+    .tok .body.shake { animation: none; }
+    .ours .tok.slide { transition-duration: .2s; }
+    .target-ring { animation: none; }
+  }
+
+  /* Title, how-to, period, intermission and final screens */
+  .scr {
+    margin: auto; width: min(720px, 100%); padding: 32px 16px 40px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+  }
+  .scr .kicker { font-family: var(--font-display); letter-spacing: .22em; color: var(--muted); font-size: 22px; }
+  .scr h1 {
+    font-family: var(--font-display); font-weight: 400; margin: 0; line-height: .9; letter-spacing: .03em;
+    font-size: clamp(64px, 13vw, 132px); text-shadow: 0 0 34px rgba(30, 107, 255, .55);
+  }
+  .scr h1 em { color: var(--gold); font-style: normal; text-shadow: 0 0 30px rgba(255, 182, 39, .55); }
+  .scr h2 { font-family: var(--font-display); font-weight: 400; margin: 0; font-size: clamp(36px, 6vw, 56px); letter-spacing: .04em; }
+  .scr .sub { font-size: 22px; line-height: 1.25; color: #cfdcf7; max-width: 32ch; margin: 0; }
+  .scr .best { font-family: var(--font-display); color: var(--gold); letter-spacing: .12em; font-size: 24px; }
+  .cta {
+    min-width: 280px; min-height: 70px; padding: 0 32px; border: 0; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(180deg, #ff4d5e, var(--line-red)); color: #fff;
+    font-family: var(--font-display); font-size: 34px; letter-spacing: .1em;
+    box-shadow: 0 6px 0 #8f1622, 0 12px 28px rgba(214, 40, 57, .45);
+  }
+  .cta:active { transform: translateY(3px); box-shadow: 0 3px 0 #8f1622; }
+  .linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; font-size: 20px; cursor: pointer; padding: 10px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; width: 100%; }
+  .step { background: rgba(255, 255, 255, .06); border: 1px solid var(--navy-3); border-radius: 14px; padding: 20px 14px; font-size: 21px; line-height: 1.2; }
+  .step b {
+    display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 12px; border-radius: 50%;
+    background: var(--us); border: 3px solid #fff; font-family: var(--font-display); font-weight: 400; font-size: 26px;
+  }
+  .bigscore { font-family: var(--font-display); color: var(--gold); line-height: .9; font-size: clamp(76px, 15vw, 150px); text-shadow: 0 0 26px rgba(255, 182, 39, .6); }
+  .bigscore small { font-size: .32em; color: var(--muted); letter-spacing: .06em; }
+  .award { font-family: var(--font-display); font-size: clamp(48px, 9vw, 88px); letter-spacing: .05em; line-height: 1; }
+  .newbest {
+    background: var(--line-red); padding: 6px 18px; font-family: var(--font-display); letter-spacing: .12em; font-size: 28px;
+    transform: rotate(-3deg); box-shadow: 0 0 26px rgba(214, 40, 57, .75);
+  }
+  .tally { display: flex; gap: 28px; font-family: var(--font-display); letter-spacing: .08em; font-size: 24px; color: var(--muted); }
+  .tally b { display: block; color: #fff; font-weight: 400; font-size: 44px; }
+  .zlane { position: relative; width: 100%; height: 66px; border-radius: 33px; background: #c9d7e6; overflow: hidden; }
+  .zlane::before {
+    content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #f7fbff, #e6f3ff);
+    transform-origin: left; animation: resurface 2.8s ease-in-out forwards;
+  }
+  .zamboni { position: absolute; top: 6px; left: -110px; width: 100px; height: 54px; animation: drive 2.8s ease-in-out forwards; }
+  @keyframes resurface { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes drive { from { left: -110px; } to { left: 100%; } }
+  @media (max-width: 640px) { .steps { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) {
+    .zlane::before { animation: none; }
+    .zamboni { display: none; }
+  }
+
+  @media (orientation: portrait) {
+    .play { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .stage { height: auto; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Shown only where the game's code can't run, like a file preview in Messages. The game replaces it on load. -->
+  <div class="nojs">
+    <h1>Hold the House</h1>
+    <p>This hockey game has to be opened from its web link in Safari or Chrome.</p>
+    <p>A file preview (like tapping an attachment in a text message) can't run it. Ask your coach for the link.</p>
+  </div>
+</div>
+<script id="htg-data">
+// Game content: rink geometry, the 12 plays, and every coach line.
+// Coordinates are in feet: x across the ice (0 = our LEFT boards, 85 = our RIGHT boards),
+// y up the ice (0 = our end boards, 200 = their end boards).
+(function () {
+  const HTG = globalThis.HTG = globalThis.HTG || {};
+
+  const RINK = {
+    width: 85, length: 200, cornerRadius: 28,
+    ourNet: { x: 42.5, y: 11 }, theirNet: { x: 42.5, y: 189 },
+    goalLineY: [11, 189], blueLineY: [75, 125], redLineY: 100,
+    creaseRadius: 6, circleRadius: 15,
+    endDots: [[20.5, 31], [64.5, 31], [20.5, 169], [64.5, 169]],
+    nzDots: [[20.5, 80], [64.5, 80], [20.5, 120], [64.5, 120]],
+    centerDot: [42.5, 100]
+  };
+
+  // Which slice of the rink each play shows, and which way is "deeper" in that zone.
+  const VIEWS = {
+    dzone: { yMin: 0, yMax: 82, deepSign: -1 },
+    neutral: { yMin: 45, yMax: 145, deepSign: -1 },
+    forecheck: { yMin: 105, yMax: 200, deepSign: 1 }
+  };
+
+  const ROLES = {
+    puckD: {
+      perfect: "That's pressure! Body between the puck and the net. They've got nowhere to go.",
+      miss: "Somebody has to be ON the puck! The D on the puck's side goes right at the carrier, from the net side."
+    },
+    netFrontD: {
+      perfect: "Guarding the house! You're between their player and the net, and your stick cuts off the pass.",
+      miss: 'Guard the front of the net: stay between their player and the net, a step toward the puck.',
+      tooDeep: "Too deep! Step up so you're beside their player, between them and the puck."
+    },
+    rushD: {
+      perfect: 'Great gap! Inside position, stick on the puck. Push them to the boards.',
+      miss: 'On a 1-on-1, stay a couple of stick lengths in front of the puck carrier, between them and the net.',
+      tooDeep: "Too deep! Don't back into your goalie. Close the gap.",
+      tooHigh: "Too far out! Step up too early and they'll skate right around you.",
+      tooWide: "Stay inside! Don't let them cut to the middle."
+    },
+    partnerD: {
+      perfect: 'Tracking back together! Level with your partner, guarding the middle.',
+      miss: 'D partners skate back together. Get level with your partner, in the middle.',
+      tooDeep: 'Too deep! That leaves a big hole. Get up level with your partner.',
+      tooHigh: "Don't get ahead of your partner. Stay level and guard the middle.",
+      tooWide: 'Come to the middle! Protect the ice between the dots.'
+    },
+    lowC: {
+      perfect: 'Center = third D! Low, between their helper and the net, ready to jump in.',
+      miss: "When the puck's in our corner, the center stays LOW to help the D.",
+      tooHigh: 'Too high! Centers come low to help when the puck is in our corner.'
+    },
+    strongW: {
+      perfect: 'Perfect wing spot: between the point and the slot. You can jump the point or block a pass in.',
+      miss: 'Wingers stay between the point and the slot.',
+      tooDeep: "Too deep! Down low is the D's and center's job. Back up toward the point.",
+      tooHigh: "Too high! Don't stand by the point like a cone. Come in a few strides."
+    },
+    weakW: {
+      perfect: "High slot! You're guarding the middle, the most dangerous pass.",
+      miss: 'Far-side wing drops into the high slot.',
+      tooDeep: "Too deep! It's crowded down there. The middle needs you.",
+      tooHigh: 'Too high! Drop into the slot. The middle matters more than the point.',
+      tooWide: 'Come to the middle! The slot is the danger zone.'
+    },
+    wallW: {
+      perfect: "On the puck! Inside position, so they can't cut to the middle.",
+      miss: 'Puck on your side boards = your puck. Go pressure it, from the inside.'
+    },
+    pointW: {
+      perfect: 'In the shooting lane! Stick on the puck. Block that shot.',
+      miss: 'Puck at the point: the wing on that side jumps out to pressure the shooter.',
+      tooDeep: "Too deep! The shooter's wide open. Get out to the point!"
+    },
+    slotC: {
+      perfect: "Slot covered! You're between their player and the net.",
+      miss: 'The center guards the slot. Get between their player and the net.'
+    },
+    lowD: {
+      perfect: 'Tied up! Between your player and the net. No tips, no rebounds.',
+      miss: 'Your player is right by the net. Get between them and the net.'
+    },
+    belowLineD: {
+      perfect: 'Stayed on the puck! Body between them and the front of the net.',
+      miss: "Stay ON the puck carrier. Don't give them time!"
+    },
+    farPostD: {
+      perfect: 'Far post covered! Nobody sneaks in the back door.',
+      miss: 'Watch the back door! The other D guards the far side of the net.'
+    },
+    pulledInW: {
+      perfect: 'Pulled in tight, inside the dots. Nothing gets through the middle.',
+      miss: "Puck's way down low. Come in! Inside the dots, near the top of the circles."
+    },
+    backcheckC: {
+      perfect: 'Middle of the ice! Your D has the puck. You take the middle.',
+      miss: "Your D already has the puck carrier. Don't double up. Get to the middle!",
+      tooWide: 'Wrong lane! Backcheck through the MIDDLE.'
+    },
+    forecheckF3: {
+      perfect: "You're the safety! High slot. If the puck pops out, you're there.",
+      miss: 'One forward always stays high on the forecheck.',
+      tooDeep: 'Too deep! If all three forwards go in, one pass means a breakaway the other way.',
+      tooHigh: 'Not that far back. Get to the top of the circles.'
+    }
+  };
+
+  const WRONG_SIDE_LINE = 'Puck. You. Net. Get between them and the net!';
+
+  const opp = (...pts) => pts.map(([x, y], i) => ({ id: 'X' + (i + 1), x, y }));
+
+  const LAYOUTS = {
+    // carrier deep in our left corner.
+    leftCorner: {
+      view: 'dzone',
+      opponents: opp([10, 11], [44, 23.5], [21, 25], [12, 68], [73, 68]),
+      puck: { x: 12.5, y: 12 }, goalie: { x: 40.5, y: 13.5 },
+      ours: {
+        LD: { x: 15.5, y: 12.5, role: 'puckD', check: 'X1', r: 4.5 },
+        C: { x: 26, y: 21.5, role: 'lowC', check: 'X3', r: 5 },
+        RD: { x: 39, y: 21.5, role: 'netFrontD', check: 'X2', r: 4.5 },
+        LW: { x: 16, y: 55, role: 'strongW', r: 9 },
+        RW: { x: 50, y: 45, role: 'weakW', r: 9 }
+      }
+    },
+    // carrier behind our net; our RD is with him.
+    behindNet: {
+      view: 'dzone',
+      opponents: opp([40, 4], [31, 17], [44, 27], [14, 66], [71, 70]),
+      puck: { x: 42.5, y: 4 }, goalie: { x: 44.5, y: 12.5 },
+      ours: {
+        RD: { x: 46.5, y: 7, role: 'belowLineD', check: 'X1', r: 4 },
+        LD: { x: 36.5, y: 13.5, role: 'farPostD', check: 'X2', r: 4.5 },
+        C: { x: 43.5, y: 21.5, role: 'slotC', check: 'X3', r: 5 },
+        LW: { x: 25, y: 44, role: 'pulledInW', r: 7 },
+        RW: { x: 59, y: 42, role: 'pulledInW', r: 7 }
+      }
+    },
+    // carrier in our right corner.
+    rightCorner: {
+      view: 'dzone',
+      opponents: opp([76, 12], [42, 24], [64, 27], [72, 68], [13, 66]),
+      puck: { x: 73.5, y: 12.5 }, goalie: { x: 44.5, y: 13.5 },
+      ours: {
+        RD: { x: 70.5, y: 13, role: 'puckD', check: 'X1', r: 4.5 },
+        C: { x: 59, y: 23, role: 'lowC', check: 'X3', r: 5 },
+        LD: { x: 47, y: 22, role: 'netFrontD', check: 'X2', r: 4.5 },
+        RW: { x: 69, y: 54, role: 'strongW', r: 9 },
+        LW: { x: 37, y: 46, role: 'weakW', r: 9 }
+      }
+    },
+    // carrier below the goal line, left of our net.
+    leftBelowLine: {
+      view: 'dzone',
+      opponents: opp([29, 6.5], [52, 19.5], [40, 30], [12, 68], [73, 68]),
+      puck: { x: 31.5, y: 7 }, goalie: { x: 39.5, y: 12.5 },
+      ours: {
+        LD: { x: 33, y: 10.5, role: 'belowLineD', check: 'X1', r: 4 },
+        RD: { x: 48.5, y: 15, role: 'farPostD', check: 'X2', r: 4.5 },
+        C: { x: 40.5, y: 24.5, role: 'slotC', check: 'X3', r: 5 },
+        LW: { x: 24, y: 44, role: 'pulledInW', r: 7 },
+        RW: { x: 58, y: 44, role: 'pulledInW', r: 7 }
+      }
+    },
+    // carrier up the right half-wall.
+    rightHalfWall: {
+      view: 'dzone',
+      opponents: opp([81, 42], [72, 14], [45, 22], [70, 70], [14, 68]),
+      puck: { x: 78.5, y: 40.5 }, goalie: { x: 44, y: 13 },
+      ours: {
+        RW: { x: 76.5, y: 38, role: 'wallW', check: 'X1', r: 4.5 },
+        RD: { x: 66.5, y: 13.5, role: 'lowD', check: 'X2', r: 5 },
+        C: { x: 55, y: 32, role: 'slotC', r: 6 },
+        LD: { x: 47.5, y: 17, role: 'netFrontD', check: 'X3', r: 4.5 },
+        LW: { x: 37, y: 46, role: 'weakW', r: 9 }
+      }
+    },
+    // their D has the puck at the left point.
+    leftPoint: {
+      view: 'dzone',
+      opponents: opp([12, 68], [73, 68], [22, 22], [46.5, 23], [44, 36]),
+      puck: { x: 14.5, y: 66.5 }, goalie: { x: 41.5, y: 13.5 },
+      ours: {
+        LW: { x: 15.5, y: 62, role: 'pointW', check: 'X1', r: 8 },
+        LD: { x: 26.5, y: 19.5, role: 'lowD', check: 'X3', r: 5 },
+        RD: { x: 44, y: 18, role: 'netFrontD', check: 'X4', r: 4.5 },
+        C: { x: 43.5, y: 31, role: 'slotC', check: 'X5', r: 5 },
+        RW: { x: 54, y: 48, role: 'weakW', r: 9 }
+      }
+    },
+    // a 1-on-1 rush down the right side.
+    rushRight: {
+      view: 'neutral',
+      opponents: opp([66, 84], [40, 108], [20, 116], [30, 136], [58, 136]),
+      puck: { x: 64, y: 82 }, goalie: null,
+      ours: {
+        LD: { x: 30, y: 62 },
+        C: { x: 44, y: 100 },
+        LW: { x: 22, y: 124 },
+        RW: { x: 70, y: 108 },
+        RD: { x: 61, y: 74.5, role: 'rushD', check: 'X1', r: 5 }
+      }
+    },
+    // Part 2 of the 1-on-1: the right D closed the gap; the left D should be level with them.
+    rushRightPart2: {
+      view: 'neutral',
+      opponents: opp([66, 84], [40, 108], [20, 116], [30, 136], [58, 136]),
+      puck: { x: 64, y: 82 }, goalie: null,
+      ours: {
+        RD: { x: 61, y: 74.5, role: 'rushD', check: 'X1', r: 5 },
+        LD: { x: 33, y: 74.5, role: 'partnerD', r: 6 },
+        C: { x: 44, y: 100 },
+        LW: { x: 22, y: 124 },
+        RW: { x: 70, y: 108 }
+      }
+    },
+    // their D has the puck at the right point.
+    rightPoint: {
+      view: 'dzone',
+      opponents: opp([72, 68], [13, 70], [60, 24], [40, 23.5], [40, 38]),
+      puck: { x: 69.5, y: 66.5 }, goalie: { x: 43, y: 13.5 },
+      ours: {
+        RW: { x: 69, y: 62, role: 'pointW', check: 'X1', r: 8 },
+        RD: { x: 55.5, y: 20.5, role: 'lowD', check: 'X3', r: 5 },
+        LD: { x: 42, y: 18.5, role: 'netFrontD', check: 'X4', r: 4.5 },
+        C: { x: 40.5, y: 32.5, role: 'slotC', check: 'X5', r: 5 },
+        LW: { x: 33, y: 48, role: 'weakW', r: 9 }
+      }
+    },
+    // they rush up the left side and our LD steps up.
+    backcheck: {
+      view: 'neutral',
+      opponents: opp([14, 82], [44, 92], [72, 96], [28, 122], [58, 124]),
+      puck: { x: 16, y: 80 }, goalie: null,
+      ours: {
+        LD: { x: 18.5, y: 77 },
+        RD: { x: 56, y: 64 },
+        LW: { x: 22, y: 104 },
+        RW: { x: 66, y: 108 },
+        C: { x: 43.5, y: 84, role: 'backcheckC', check: 'X2', r: 7 }
+      }
+    },
+    // carrier trying to walk out from beside the right side of our net.
+    rightBelowLine: {
+      view: 'dzone',
+      opponents: opp([58, 9], [32, 19], [46, 34], [74, 66], [12, 70]),
+      puck: { x: 55.5, y: 9.5 }, goalie: { x: 45.5, y: 12.5 },
+      ours: {
+        RD: { x: 53.5, y: 11.5, role: 'belowLineD', check: 'X1', r: 4 },
+        LD: { x: 36, y: 15, role: 'farPostD', check: 'X2', r: 4.5 },
+        C: { x: 45, y: 29, role: 'slotC', check: 'X3', r: 5 },
+        RW: { x: 60, y: 40, role: 'pulledInW', r: 7 },
+        LW: { x: 27, y: 42, role: 'pulledInW', r: 7 }
+      }
+    },
+    // we're forechecking in their zone.
+    forecheck: {
+      view: 'forecheck',
+      opponents: opp([10, 188], [62, 186], [4, 162], [40, 172], [80, 162]),
+      puck: { x: 12.5, y: 186.5 }, goalie: null,
+      ours: {
+        C: { x: 15, y: 183 },
+        LW: { x: 9.5, y: 167 },
+        LD: { x: 14, y: 129 },
+        RD: { x: 64, y: 129 },
+        RW: { x: 44, y: 153, role: 'forecheckF3', r: 7 }
+      }
+    },
+    // carrier up the left half-wall.
+    leftHalfWall: {
+      view: 'dzone',
+      opponents: opp([4, 40], [12, 15], [44, 23.5], [12, 68], [73, 68]),
+      puck: { x: 6.5, y: 38.5 }, goalie: { x: 41, y: 13 },
+      ours: {
+        LW: { x: 9, y: 36.5, role: 'wallW', check: 'X1', r: 4.5 },
+        LD: { x: 17, y: 14.5, role: 'lowD', check: 'X2', r: 5 },
+        C: { x: 30, y: 32, role: 'slotC', r: 6 },
+        RD: { x: 41.5, y: 18.5, role: 'netFrontD', check: 'X3', r: 4.5 },
+        RW: { x: 48, y: 46, role: 'weakW', r: 9 }
+      }
+    }
+  };
+
+  const ALL_FIVE = 'Place all five. One at a time!';
+  const SPOT_IT = "Tap the player who's out of position.";
+
+  const PLAYS = [
+    // 1st period: own-end basics
+    { n: 1, period: 1, type: 'place1', layout: 'leftCorner', order: ['RD'],
+      situation: "The puck's in our left corner.", task: 'Place your RIGHT D.' },
+    { n: 2, period: 1, type: 'place1', layout: 'behindNet', order: ['C'],
+      situation: 'Their player has the puck behind our net.', task: 'Place your CENTER.' },
+    { n: 3, period: 1, type: 'spot', layout: 'rightCorner', wrong: { pos: 'RD', x: 50, y: 17 },
+      situation: "The puck's in our right corner.", task: SPOT_IT,
+      pickRight: "Good eye! Nobody's on the puck carrier.",
+      pickWrong: "Look again: nobody's pressuring the puck. Whose job is it?" },
+    { n: 4, period: 1, type: 'place5', layout: 'leftBelowLine', order: ['LD', 'RD', 'C', 'LW', 'RW'],
+      situation: 'Their player has the puck below the goal line, right beside our net.', task: ALL_FIVE },
+    // 2nd period: transition (all the neutral-zone plays together)
+    { n: 5, period: 2, type: 'place1', layout: 'rushRight', order: ['RD'],
+      situation: "It's a 1-on-1! Their forward is rushing down the right side.", task: "You're the right D. Where do you go?" },
+    { n: 6, period: 2, type: 'spot', layout: 'rushRightPart2', followUp: true, wrong: { pos: 'LD', x: 30, y: 62 },
+      situation: 'Part 2 of the rush: your right D closed the gap.', task: SPOT_IT,
+      pickRight: 'Good eye! The left D is way too deep. D partners skate back together.',
+      pickWrong: "Look again: which D isn't skating back with their partner?" },
+    { n: 7, period: 2, type: 'place1', layout: 'backcheck', order: ['C'],
+      situation: "They're rushing up the ice. Your left D steps up on the puck carrier.",
+      task: "You're the center, racing back. Where do you go?" },
+    { n: 8, period: 2, type: 'place1', layout: 'forecheck', order: ['RW'],
+      situation: "We're on the attack! Your center and left wing went in deep.",
+      task: "You're the right wing. Where do you go?" },
+    // 3rd period: the puck moves around our zone
+    { n: 9, period: 3, type: 'place1', layout: 'rightHalfWall', order: ['LW'],
+      situation: "The puck's up the right side boards.", task: 'Place your LEFT WING.' },
+    { n: 10, period: 3, type: 'spot', layout: 'leftPoint', wrong: { pos: 'LW', x: 8, y: 24 },
+      situation: 'Their D has the puck at the left point.', task: SPOT_IT,
+      pickRight: 'Good eye! That wing is way too deep. The shooter is wide open.',
+      pickWrong: "Look again: who's supposed to pressure the point?" },
+    { n: 11, period: 3, type: 'place5', layout: 'rightPoint', order: ['RW', 'LD', 'RD', 'C', 'LW'],
+      situation: "The puck's at the right point.", task: ALL_FIVE },
+    { n: 12, period: 3, type: 'spot', layout: 'rightBelowLine', wrong: { pos: 'RD', x: 63, y: 5.5 },
+      situation: 'Their player is trying to walk out from beside our net.', task: SPOT_IT,
+      pickRight: 'Good eye! That D is on the wrong side of the puck.',
+      pickWrong: "Look again: which D isn't between the puck and the net?" },
+    { n: 13, period: 3, type: 'place5', layout: 'leftHalfWall', order: ['LW', 'RD', 'LD', 'C', 'RW'],
+      situation: "Last play! The puck's up the left side boards.", task: ALL_FIVE }
+  ];
+
+  const PERIODS = [
+    { n: 1, name: 'Own-end basics' },
+    { n: 2, name: 'Transition' },
+    { n: 3, name: 'The puck moves' }
+  ];
+
+  const TITLES = [
+    { min: 1, name: 'Hall of Famer' },
+    { min: 0.85, name: 'Captain' },
+    { min: 0.65, name: 'All-Star' },
+    { min: 0.40, name: 'Starter' },
+    { min: 0, name: 'Rookie' }
+  ];
+
+  const POINTS = { perfect: 100, nice: 60, close: 30, miss: 0, spotPick: 50 };
+
+  HTG.data = { RINK, VIEWS, ROLES, WRONG_SIDE_LINE, LAYOUTS, PLAYS, PERIODS, TITLES, POINTS };
+})();
+</script>
+<script id="htg-logic">
+// Pure scoring rules (spec §7). No DOM: tests load this block directly.
+(function () {
+  const HTG = globalThis.HTG = globalThis.HTG || {};
+  const { RINK, ROLES, WRONG_SIDE_LINE, TITLES, POINTS } = HTG.data;
+  const TIER_ORDER = ['perfect', 'nice', 'close', 'miss'];
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  function tierFor(d, r) {
+    if (d <= r) return 'perfect';
+    if (d <= 2 * r) return 'nice';
+    if (d <= 3 * r) return 'close';
+    return 'miss';
+  }
+
+  // "Puck. You. Net.": you're on the wrong side if you're farther from our net than your check is.
+  const isWrongSide = (placed, check, net) => dist(placed, net) > dist(check, net);
+
+  // deepSign says which way is "deeper" in the zone: -1 in our end, +1 in theirs.
+  function missDirection(placed, target, deepSign) {
+    const dx = placed.x - target.x;
+    const depth = (placed.y - target.y) * deepSign;
+    if (Math.abs(depth) >= Math.abs(dx)) return depth > 0 ? 'tooDeep' : 'tooHigh';
+    const centerX = RINK.width / 2;
+    return Math.abs(placed.x - centerX) > Math.abs(target.x - centerX) ? 'tooWide' : null;
+  }
+
+  function scorePlacement({ placed, target, check, net, deepSign }) {
+    const distance = dist(placed, target);
+    let tier = tierFor(distance, target.r);
+    const wrongSide = check ? isWrongSide(placed, check, net) : false;
+    if (wrongSide && TIER_ORDER.indexOf(tier) < TIER_ORDER.indexOf('close')) tier = 'close';
+    const direction = tier !== 'perfect' && !wrongSide ? missDirection(placed, target, deepSign) : null;
+    return { tier, points: POINTS[tier], distance, wrongSide, direction };
+  }
+
+  function coachLine(result, roleKey) {
+    const role = ROLES[roleKey];
+    if (result.tier === 'perfect') return role.perfect;
+    if (result.wrongSide) return WRONG_SIDE_LINE;
+    if (result.direction && role[result.direction]) return role[result.direction];
+    return role.miss;
+  }
+
+  function scoreSpotPick(tappedPos, wrongPos) {
+    const correct = tappedPos === wrongPos;
+    return { correct, points: correct ? POINTS.spotPick : 0 };
+  }
+
+  function maxScore(plays) {
+    return plays.reduce((sum, play) => {
+      if (play.type === 'spot') return sum + POINTS.spotPick + POINTS.perfect;
+      return sum + play.order.length * POINTS.perfect;
+    }, 0);
+  }
+
+  function titleFor(score, max) {
+    const share = score / max;
+    return TITLES.find(t => share >= t.min).name;
+  }
+
+  function nextStreak(streak, tier) {
+    if (tier !== 'perfect') return { streak: 0, hatTrick: false };
+    return streak + 1 === 3 ? { streak: 0, hatTrick: true } : { streak: streak + 1, hatTrick: false };
+  }
+
+  // Keep a dropped player on the ice: inside the boards, rounded corners included.
+  function clampToRink(p, margin = 2.5) {
+    const { width, length, cornerRadius } = RINK;
+    let x = Math.min(Math.max(p.x, margin), width - margin);
+    let y = Math.min(Math.max(p.y, margin), length - margin);
+    const cx = x < cornerRadius ? cornerRadius : x > width - cornerRadius ? width - cornerRadius : null;
+    const cy = y < cornerRadius ? cornerRadius : y > length - cornerRadius ? length - cornerRadius : null;
+    if (cx !== null && cy !== null) {
+      const d = Math.hypot(x - cx, y - cy);
+      const limit = cornerRadius - margin;
+      if (d > limit) {
+        x = cx + (x - cx) * limit / d;
+        y = cy + (y - cy) * limit / d;
+      }
+    }
+    return { x, y };
+  }
+
+  // Browser storage can be missing or throw (private mode, blocked site data):
+  // reads fall back, writes are dropped, and the game keeps going either way.
+  function makeStore(storage, prefix = 'htg.') {
+    return {
+      get(key, fallback) {
+        try {
+          const raw = storage.getItem(prefix + key);
+          return raw === null || raw === undefined ? fallback : JSON.parse(raw);
+        } catch (e) {
+          return fallback;
+        }
+      },
+      set(key, value) {
+        try { storage.setItem(prefix + key, JSON.stringify(value)); } catch (e) { /* not saved */ }
+      }
+    };
+  }
+
+  HTG.logic = {
+    dist, tierFor, isWrongSide, missDirection, scorePlacement, coachLine,
+    scoreSpotPick, maxScore, titleFor, nextStreak, clampToRink, makeStore
+  };
+})();
+</script>
+<script id="htg-flow">
+// The whole game as a pure reducer: (state, action) -> state. Actions that don't
+// apply return the same state object, which makes double taps harmless.
+(function () {
+  const HTG = globalThis.HTG = globalThis.HTG || {};
+  const { PLAYS, LAYOUTS, VIEWS, RINK } = HTG.data;
+  const L = HTG.logic;
+  const OURS = ['LD', 'RD', 'C', 'LW', 'RW'];
+
+  function createGame({ seenHowTo = false, best = 0 } = {}) {
+    return {
+      screen: 'title', seenHowTo, best, newBest: false,
+      playIndex: 0, step: 0, phase: 'place', positions: {}, pending: null,
+      score: 0, periodScores: [0, 0, 0], streak: 0, last: null
+    };
+  }
+
+  function targetFor(play, pos) {
+    const layout = LAYOUTS[play.layout];
+    const t = layout.ours[pos];
+    const check = t.check ? layout.opponents.find(o => o.id === t.check) : null;
+    return { x: t.x, y: t.y, r: t.r, role: t.role, check: check ? { x: check.x, y: check.y } : null };
+  }
+
+  const activePos = state => Object.keys(state.positions).find(p => state.positions[p].status === 'active');
+
+  // Players waiting on the bench carry no coordinates, so the answer never leaks to the screen.
+  function setupPlay(state, playIndex) {
+    const play = PLAYS[playIndex];
+    const layout = LAYOUTS[play.layout];
+    const positions = {};
+    for (const pos of Object.keys(layout.ours)) {
+      positions[pos] = { x: layout.ours[pos].x, y: layout.ours[pos].y, status: 'ice' };
+    }
+    let phase = 'place';
+    if (play.type === 'spot') {
+      positions[play.wrong.pos] = { x: play.wrong.x, y: play.wrong.y, status: 'wrong' };
+      phase = 'pick';
+    } else {
+      const waiting = play.type === 'place5' ? play.order : [play.order[0]];
+      for (const pos of waiting) positions[pos] = { x: null, y: null, status: 'bench' };
+      positions[play.order[0]].status = 'active';
+    }
+    return { ...state, screen: 'play', playIndex, step: 0, phase, positions, pending: null, last: null };
+  }
+
+  function addPoints(state, points) {
+    const periodScores = state.periodScores.slice();
+    periodScores[PLAYS[state.playIndex].period - 1] += points;
+    return { ...state, score: state.score + points, periodScores };
+  }
+
+  function pick(state, pos) {
+    if (state.screen !== 'play' || state.phase !== 'pick' || !OURS.includes(pos)) return state;
+    const play = PLAYS[state.playIndex];
+    const { correct, points } = L.scoreSpotPick(pos, play.wrong.pos);
+    const line = correct ? play.pickRight : play.pickWrong;
+    return addPoints({ ...state, phase: 'feedback', last: { kind: 'pick', tapped: pos, correct, points, line } }, points);
+  }
+
+  function lock(state) {
+    if (state.screen !== 'play' || state.phase !== 'place' || !state.pending) return state;
+    const play = PLAYS[state.playIndex];
+    // In a spot-it play the player has to be moved off the wrong spot before it can be locked.
+    if (play.type === 'spot' && state.pending.x === play.wrong.x && state.pending.y === play.wrong.y) return state;
+    const pos = activePos(state);
+    const target = targetFor(play, pos);
+    const result = L.scorePlacement({
+      placed: state.pending, target, check: target.check,
+      net: RINK.ourNet, deepSign: VIEWS[LAYOUTS[play.layout].view].deepSign
+    });
+    const { streak, hatTrick } = L.nextStreak(state.streak, result.tier);
+    const last = {
+      kind: 'place', pos, from: state.pending, tier: result.tier, points: result.points,
+      wrongSide: result.wrongSide, direction: result.direction, line: L.coachLine(result, target.role), hatTrick
+    };
+    const positions = { ...state.positions, [pos]: { x: target.x, y: target.y, status: 'ice' } };
+    return addPoints({ ...state, phase: 'feedback', positions, pending: null, streak, last }, result.points);
+  }
+
+  function next(state) {
+    if (state.screen === 'intermission') return { ...state, screen: 'periodIntro' };
+    if (state.screen !== 'play' || state.phase !== 'feedback') return state;
+    const play = PLAYS[state.playIndex];
+    if (state.last.kind === 'pick') {
+      const pos = play.wrong.pos;
+      const positions = { ...state.positions, [pos]: { ...state.positions[pos], status: 'active' } };
+      return { ...state, phase: 'place', positions, pending: { x: play.wrong.x, y: play.wrong.y } };
+    }
+    if (play.order && state.step + 1 < play.order.length) {
+      const step = state.step + 1;
+      const pos = play.order[step];
+      const positions = { ...state.positions, [pos]: { ...state.positions[pos], status: 'active' } };
+      return { ...state, step, phase: 'place', positions, pending: null };
+    }
+    const nextIndex = state.playIndex + 1;
+    if (nextIndex >= PLAYS.length) {
+      return { ...state, screen: 'final', best: Math.max(state.best, state.score), newBest: state.score > state.best };
+    }
+    if (PLAYS[nextIndex].period === play.period) return setupPlay(state, nextIndex);
+    return { ...state, screen: 'intermission', playIndex: nextIndex };
+  }
+
+  function reduce(state, action) {
+    switch (action.type) {
+      case 'START':
+        return state.screen === 'title' ? { ...state, screen: state.seenHowTo ? 'periodIntro' : 'howto' } : state;
+      case 'HOWTO':
+        return state.screen === 'title' ? { ...state, screen: 'howto' } : state;
+      case 'LETS_GO':
+        return state.screen === 'howto' ? { ...state, screen: 'periodIntro', seenHowTo: true } : state;
+      case 'BEGIN_PERIOD':
+        return state.screen === 'periodIntro' ? setupPlay(state, state.playIndex) : state;
+      case 'JUMP':
+        return Number.isInteger(action.playIndex) && action.playIndex >= 0 && action.playIndex < PLAYS.length
+          ? setupPlay(state, action.playIndex) : state;
+      case 'PICK':
+        return pick(state, action.pos);
+      case 'MOVE':
+        if (state.screen !== 'play' || state.phase !== 'place') return state;
+        if (!Number.isFinite(action.x) || !Number.isFinite(action.y)) return state;
+        return { ...state, pending: L.clampToRink({ x: action.x, y: action.y }) };
+      case 'LOCK':
+        return lock(state);
+      case 'NEXT':
+        return next(state);
+      case 'PLAY_AGAIN':
+        return state.screen === 'final' ? createGame({ seenHowTo: state.seenHowTo, best: state.best }) : state;
+      default:
+        return state;
+    }
+  }
+
+  HTG.flow = { createGame, reduce, targetFor };
+})();
+</script>
+<script id="htg-audio">
+// Arena sounds, synthesized with Web Audio (no audio files). Browsers (iPad especially)
+// only allow sound after a tap, so nothing plays until unlock() runs inside one.
+(function () {
+  const HTG = globalThis.HTG = globalThis.HTG || {};
+  const MASTER_GAIN = 0.6;
+  const audio = { ctx: null, master: null, muted: false };
+  let noise = null;
+  let echo = null;
+
+  function ensureContext() {
+    if (audio.ctx) return audio.ctx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    const ctx = new Ctx();
+    audio.master = ctx.createGain();
+    audio.master.gain.value = audio.muted ? 0 : MASTER_GAIN;
+    audio.master.connect(ctx.destination);
+    noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const data = noise.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    // Arena echo: a convolver fed with a fading burst of stereo noise.
+    const ir = ctx.createBuffer(2, ctx.sampleRate * 2.6, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = ir.getChannelData(c);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3.2);
+    }
+    echo = ctx.createConvolver();
+    echo.buffer = ir;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.32;
+    echo.connect(wet).connect(audio.master);
+    audio.ctx = ctx;
+    return ctx;
+  }
+
+  // A gain envelope: rise to `peak` by `attack`, hold until `release`, fade out by `end` (all seconds from t0).
+  function envelope(ctx, t0, peak, attack, release, end) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0 + attack);
+    g.gain.setValueAtTime(peak, t0 + release);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + end);
+    return g;
+  }
+
+  function noiseSource(ctx, t0, duration) {
+    const src = ctx.createBufferSource();
+    src.buffer = noise;
+    src.loop = true;
+    src.start(t0);
+    src.stop(t0 + duration);
+    return src;
+  }
+
+  function tone(ctx, out, type, freq, t0, duration, peak) {
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    const env = envelope(ctx, t0, peak, 0.02, duration * 0.7, duration);
+    osc.connect(env).connect(out);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.05);
+    return osc;
+  }
+
+  const SOUNDS = {
+    // The goal song (the coach's pick): stadium organ "da-da-da-DAAA" with arena echo.
+    goal(ctx, out, t0) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 2600;
+      lp.connect(out);
+      if (echo) lp.connect(echo);
+      const G4 = 392, C5 = 523.25, E5 = 659.25, G5 = 783.99;
+      for (const [f, at, len] of [[G4, 0, 0.13], [C5, 0.14, 0.13], [E5, 0.28, 0.13], [G5, 0.42, 0.7]]) {
+        tone(ctx, lp, 'square', f, t0 + at, len, 0.08);
+        tone(ctx, lp, 'square', f / 2, t0 + at, len, 0.05);
+      }
+    },
+    // Ref's pea whistle: two blasts with a fast trill.
+    whistle(ctx, out, t0) {
+      for (const [start, len] of [[0, 0.16], [0.24, 0.5]]) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine'; osc.frequency.value = 2800;
+        const vib = ctx.createOscillator();
+        const vibDepth = ctx.createGain();
+        vib.frequency.value = 25; vibDepth.gain.value = 140;
+        vib.connect(vibDepth).connect(osc.frequency);
+        const env = envelope(ctx, t0 + start, 0.22, 0.015, len - 0.04, len);
+        osc.connect(env).connect(out);
+        osc.start(t0 + start); osc.stop(t0 + start + len + 0.02);
+        vib.start(t0 + start); vib.stop(t0 + start + len + 0.02);
+      }
+    },
+    // Crowd roar: two bands of noise swelling up and fading.
+    cheer(ctx, out, t0) {
+      for (const [freq, q, peak] of [[900, 0.7, 0.28], [2400, 0.9, 0.16]]) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q;
+        const env = envelope(ctx, t0, peak, 0.35, 0.9, 1.9);
+        noiseSource(ctx, t0, 2).connect(bp).connect(env).connect(out);
+      }
+    },
+    // Disappointed crowd: low, short "ooh".
+    ooh(ctx, out, t0) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 520;
+      noiseSource(ctx, t0, 1).connect(lp).connect(envelope(ctx, t0, 0.3, 0.12, 0.45, 0.95)).connect(out);
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(330, t0);
+      osc.frequency.exponentialRampToValueAtTime(230, t0 + 0.9);
+      osc.connect(envelope(ctx, t0, 0.08, 0.1, 0.5, 0.9)).connect(out);
+      osc.start(t0); osc.stop(t0 + 1);
+    },
+    // Stadium organ "Charge!".
+    organ(ctx, out, t0) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 2600;
+      lp.connect(out);
+      const G4 = 392, C5 = 523.25, E5 = 659.25, G5 = 783.99;
+      const notes = [[G4, 0, 0.13], [C5, 0.14, 0.13], [E5, 0.28, 0.13], [G5, 0.42, 0.3], [E5, 0.78, 0.12], [G5, 0.92, 0.65]];
+      for (const [f, at, len] of notes) {
+        tone(ctx, lp, 'square', f, t0 + at, len, 0.09);
+        tone(ctx, lp, 'square', f / 2, t0 + at, len, 0.05);
+      }
+    },
+    // Quick air sweep for banners flying in.
+    swoosh(ctx, out, t0) {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.Q.value = 1.2;
+      bp.frequency.setValueAtTime(400, t0);
+      bp.frequency.exponentialRampToValueAtTime(3200, t0 + 0.3);
+      noiseSource(ctx, t0, 0.35).connect(bp).connect(envelope(ctx, t0, 0.18, 0.08, 0.15, 0.32)).connect(out);
+    }
+  };
+
+  audio.unlock = function () {
+    const ctx = ensureContext();
+    if (!ctx) return Promise.resolve();
+    audio.unlocked = true;
+    // Newer iPhones: play game sounds even when the ringer switch is on silent.
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older browsers */ }
+    // iOS needs a sound started inside the tap itself.
+    const blip = ctx.createBufferSource();
+    blip.buffer = ctx.createBuffer(1, 1, 22050);
+    blip.connect(ctx.destination);
+    blip.start(0);
+    return ctx.state === 'running' ? Promise.resolve() : ctx.resume().catch(() => {});
+  };
+
+  audio.setMuted = function (muted) {
+    audio.muted = !!muted;
+    if (audio.master) audio.master.gain.setTargetAtTime(audio.muted ? 0 : MASTER_GAIN, audio.ctx.currentTime, 0.02);
+  };
+
+  audio.play = function (name) {
+    const ctx = audio.ctx;
+    if (!ctx || !audio.unlocked || audio.muted || !SOUNDS[name]) return;
+    const go = () => {
+      try { SOUNDS[name](ctx, audio.master, ctx.currentTime + 0.01); } catch (e) { /* a missed sound never stops the game */ }
+    };
+    // The tap that unlocked audio may still be resuming the context (e.g. START → organ).
+    if (ctx.state === 'running') go();
+    else ctx.resume().then(go, () => {});
+  };
+
+  HTG.audio = audio;
+})();
+</script>
+<script id="htg-ui">
+// Everything on screen: the arena shell, the SVG rink, the panel, and the screens.
+// The rink is drawn vertically with our net at the bottom (screen y = 200 - y).
+(function () {
+  const HTG = globalThis.HTG = globalThis.HTG || {};
+  const { RINK, VIEWS, LAYOUTS, PLAYS, PERIODS } = HTG.data;
+  const { createGame, reduce } = HTG.flow;
+  const NS = 'http://www.w3.org/2000/svg';
+  const OURS = ['LD', 'RD', 'C', 'LW', 'RW'];
+  const NAMES = { LD: 'LEFT D', RD: 'RIGHT D', C: 'CENTER', LW: 'LEFT WING', RW: 'RIGHT WING' };
+  const ORDINAL = ['1ST', '2ND', '3RD'];
+  const DISC_FT = 2.6;        // real-life-ish player size on the rink
+  const MIN_DISC_PX = 22;     // ...but never smaller than 44px across (iPad tap target)
+  const TOKEN_UNIT = 10;      // tokens are drawn at radius 10 so their labels use real font sizes
+
+  const sy = y => RINK.length - y;
+
+  function svgEl(tag, attrs, parent) {
+    const node = document.createElementNS(NS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function htmlEl(tag, className, parent, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  const SPEAKER_ON = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+  const SPEAKER_OFF = '<svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>';
+
+  // ---------- Shell ----------
+  const root = document.getElementById('app');
+  root.textContent = '';
+  const board = htmlEl('header', 'board', root);
+  const light = htmlEl('span', 'light', board);
+  const whereEl = htmlEl('span', 'where', board);
+  const scoreEl = htmlEl('span', 'score', board);
+  const muteBtn = htmlEl('button', 'mute', board);
+  muteBtn.type = 'button';
+  const screenEl = htmlEl('main', null, root);
+  screenEl.id = 'screen';
+
+  function setMuteIcon(muted) {
+    muteBtn.innerHTML = muted ? SPEAKER_OFF : SPEAKER_ON;
+    muteBtn.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
+  }
+  setMuteIcon(false);
+
+  // ---------- Rink ----------
+  function drawRink(svg) {
+    const { width, length, cornerRadius, goalLineY, blueLineY, redLineY, creaseRadius, circleRadius } = RINK;
+    const defs = svgEl('defs', {}, svg);
+    const clip = svgEl('clipPath', { id: 'rink-clip' }, defs);
+    svgEl('rect', { x: 0, y: 0, width, height: length, rx: cornerRadius }, clip);
+    svgEl('rect', { x: 0, y: 0, width, height: length, rx: cornerRadius, fill: 'var(--ice)' }, svg);
+    const g = svgEl('g', { 'clip-path': 'url(#rink-clip)' }, svg);
+    const red = 'var(--line-red)', blue = 'var(--line-blue)';
+    for (const y of goalLineY) svgEl('rect', { x: 0, y: sy(y) - .25, width, height: .5, fill: red }, g);
+    for (const y of blueLineY) svgEl('rect', { x: 0, y: sy(y) - .8, width, height: 1.6, fill: blue }, g);
+    svgEl('rect', { x: 0, y: sy(redLineY) - .7, width, height: 1.4, fill: red }, g);
+    const cx = width / 2, half = 3;
+    // Creases open toward the slot; nets sit just behind each goal line.
+    svgEl('path', { d: `M${cx - creaseRadius},${sy(11)} A${creaseRadius},${creaseRadius} 0 0 1 ${cx + creaseRadius},${sy(11)} Z`, fill: 'var(--crease)', stroke: red, 'stroke-width': .3 }, g);
+    svgEl('path', { d: `M${cx - creaseRadius},${sy(189)} A${creaseRadius},${creaseRadius} 0 0 0 ${cx + creaseRadius},${sy(189)} Z`, fill: 'var(--crease)', stroke: red, 'stroke-width': .3 }, g);
+    svgEl('rect', { x: cx - half, y: sy(11), width: 2 * half, height: 3.5, rx: .6, fill: 'none', stroke: red, 'stroke-width': .5 }, g);
+    svgEl('rect', { x: cx - half, y: sy(192.5), width: 2 * half, height: 3.5, rx: .6, fill: 'none', stroke: red, 'stroke-width': .5 }, g);
+    for (const [x, y] of RINK.endDots) {
+      svgEl('circle', { cx: x, cy: sy(y), r: circleRadius, fill: 'none', stroke: red, 'stroke-width': .4 }, g);
+      svgEl('circle', { cx: x, cy: sy(y), r: 1, fill: red }, g);
+      for (const side of [-1, 1]) {
+        const hx = x + side * 2.9;
+        svgEl('path', { d: `M${hx},${sy(y) - circleRadius} v-2 M${hx},${sy(y) + circleRadius} v2`, stroke: red, 'stroke-width': .35 }, g);
+      }
+    }
+    for (const [x, y] of RINK.nzDots) svgEl('circle', { cx: x, cy: sy(y), r: 1, fill: red }, g);
+    svgEl('circle', { cx: RINK.centerDot[0], cy: sy(RINK.centerDot[1]), r: circleRadius, fill: 'none', stroke: blue, 'stroke-width': .4 }, g);
+    svgEl('circle', { cx: RINK.centerDot[0], cy: sy(RINK.centerDot[1]), r: .8, fill: blue }, g);
+    svgEl('rect', { x: .4, y: .4, width: width - .8, height: length - .8, rx: cornerRadius - .4, fill: 'none', stroke: '#fff', 'stroke-width': 1.2 }, svg);
+  }
+
+  // Outer <g> is positioned and scaled; the inner .body can shake without fighting that.
+  function makeToken(kind, label) {
+    const g = svgEl('g', { class: `tok ${kind}` });
+    const body = svgEl('g', { class: 'body' }, g);
+    svgEl('circle', { class: 'halo', r: 1.5 * TOKEN_UNIT }, body);
+    svgEl('circle', { r: TOKEN_UNIT }, body);
+    svgEl('text', {}, body).textContent = label;
+    return g;
+  }
+
+  // ---------- Play screen (built once, reused across plays) ----------
+  const play = htmlEl('section', 'play');
+  const stage = htmlEl('div', 'stage', play);
+  const rink = svgEl('svg', { id: 'rink', preserveAspectRatio: 'xMidYMid meet', 'aria-label': 'Hockey rink' }, stage);
+  const bannerLayer = htmlEl('div', 'banner-layer', stage);
+  drawRink(rink);
+  const targetLayer = svgEl('g', { class: 'targets' }, rink);
+  const otherLayer = svgEl('g', { class: 'others' }, rink);
+  const ourLayer = svgEl('g', { class: 'ours' }, rink);
+  const ourTokens = {};
+  for (const pos of OURS) {
+    ourTokens[pos] = makeToken('us', pos);
+    ourTokens[pos].dataset.pos = pos;
+    ourLayer.appendChild(ourTokens[pos]);
+  }
+
+  const panel = htmlEl('aside', 'panel', play);
+  const taskEl = htmlEl('div', 'task', panel);
+  const taskLabel = htmlEl('small', null, taskEl);
+  const taskText = htmlEl('span', null, taskEl);
+  const benchEl = htmlEl('div', 'bench', panel);
+  const coachEl = htmlEl('div', 'coach', panel);
+  htmlEl('span', 'who', coachEl, 'COACH SAYS');
+  const coachText = htmlEl('span', 'line', coachEl);
+  const primaryBtn = htmlEl('button', 'primary', panel);
+  primaryBtn.type = 'button';
+
+  let mountedPlay = -1;
+  let mountedView = VIEWS.dzone;
+  let discFt = DISC_FT;
+
+  // Size the SVG to exactly the play's window of rink, as big as the stage allows,
+  // so nothing outside the window shows in letterbox space.
+  function fitRink() {
+    const aspect = RINK.width / (mountedView.yMax - mountedView.yMin);
+    const portrait = window.matchMedia('(orientation: portrait)').matches;
+    const availW = stage.clientWidth;
+    const availH = portrait ? window.innerHeight * 0.62 : stage.clientHeight;
+    let w = availW, h = availW / aspect;
+    if (h > availH) { h = availH; w = availH * aspect; }
+    rink.style.width = `${Math.floor(w)}px`;
+    rink.style.height = `${Math.floor(h)}px`;
+  }
+
+  function pxPerFoot() {
+    const m = rink.getScreenCTM();
+    return m && m.a ? m.a : 8;
+  }
+
+  // The CSS transform (in SVG user units) lets the slide-to-target move animate; the
+  // plain SVG attribute underneath positions the token even where that CSS is ignored.
+  function placeToken(g, x, y, radius) {
+    const s = radius / TOKEN_UNIT;
+    g.setAttribute('transform', `translate(${x} ${sy(y)}) scale(${s})`);
+    g.style.transform = `translate(${x}px, ${sy(y)}px) scale(${s})`;
+  }
+
+  function mountPlay(state) {
+    const p = PLAYS[state.playIndex];
+    const layout = LAYOUTS[p.layout];
+    const view = VIEWS[layout.view];
+    rink.setAttribute('viewBox', `0 ${sy(view.yMax)} ${RINK.width} ${view.yMax - view.yMin}`);
+    mountedView = view;
+    otherLayer.textContent = '';
+    for (const o of layout.opponents) {
+      const t = makeToken('them', 'X');
+      t.dataset.id = o.id;
+      t.dataset.x = o.x; t.dataset.y = o.y;
+      otherLayer.appendChild(t);
+    }
+    if (layout.goalie) {
+      const g = makeToken('goalie', 'G');
+      g.dataset.x = layout.goalie.x; g.dataset.y = layout.goalie.y; g.dataset.scale = .85;
+      otherLayer.appendChild(g);
+    }
+    const puck = svgEl('circle', { class: 'puck', r: TOKEN_UNIT }, otherLayer);
+    puck.dataset.x = layout.puck.x; puck.dataset.y = layout.puck.y; puck.dataset.scale = .42;
+    targetLayer.textContent = '';
+    mountedPlay = state.playIndex;
+  }
+
+  // Where each of our players is drawn right now (null = not on the ice).
+  function drawnSpot(state, pos) {
+    const p = state.positions[pos];
+    if (!p) return null;
+    if (p.status === 'active') return state.pending || (p.x === null ? null : { x: p.x, y: p.y });
+    if (p.status === 'bench') return null;
+    return { x: p.x, y: p.y };
+  }
+
+  function layoutTokens(state) {
+    fitRink();
+    discFt = Math.max(DISC_FT, MIN_DISC_PX / pxPerFoot());
+    for (const node of otherLayer.children) {
+      placeToken(node, +node.dataset.x, +node.dataset.y, discFt * (+node.dataset.scale || 1));
+    }
+    for (const pos of OURS) {
+      const g = ourTokens[pos];
+      const spot = drawnSpot(state, pos);
+      g.style.display = spot ? '' : 'none';
+      g.classList.toggle('active', !!state.positions[pos] && state.positions[pos].status === 'active');
+      if (spot) placeToken(g, spot.x, spot.y, discFt);
+    }
+  }
+
+  const stillOnWrongSpot = (state, p) =>
+    p.type === 'spot' && state.pending && state.pending.x === p.wrong.x && state.pending.y === p.wrong.y;
+
+  function taskFor(state, p) {
+    if (p.type === 'spot') {
+      const picking = state.phase === 'pick' || (state.phase === 'feedback' && state.last.kind === 'pick');
+      return picking ? p.task : 'Now click where they should be.';
+    }
+    if (p.type === 'place5') return `Place your ${NAMES[p.order[state.step]]}.`;
+    return p.task;
+  }
+
+  function hintFor(state, p) {
+    if (state.phase === 'feedback') return state.last.line;
+    if (state.phase === 'pick') return p.situation + ' Look carefully at your blue players.';
+    if (stillOnWrongSpot(state, p)) return 'Click the ice where the glowing player should be, then hit LOCK IT IN.';
+    if (state.pending) return 'Happy with that spot? Hit LOCK IT IN. (Or click somewhere else to move them.)';
+    if (p.type === 'place5' && state.step === 0) return p.task + ' Click the ice where each player should go.';
+    return 'Click the ice where your player should go.';
+  }
+
+  function renderBench(state, p) {
+    benchEl.textContent = '';
+    if (p.type === 'spot') return;
+    for (const pos of p.order) {
+      const st = state.positions[pos];
+      if (!st || st.status === 'ice') continue;
+      if (st.status === 'active' && state.pending) continue;
+      const b = htmlEl('span', 'bench-tok ' + (st.status === 'active' ? 'active' : 'waiting'), benchEl, pos);
+      b.title = NAMES[pos];
+    }
+  }
+
+  function renderPlay(state) {
+    if (play.parentNode !== screenEl) { screenEl.textContent = ''; screenEl.appendChild(play); }
+    if (mountedPlay !== state.playIndex) mountPlay(state);
+    const p = PLAYS[state.playIndex];
+    layoutTokens(state);
+    taskLabel.textContent = p.type === 'place5' ? `${p.situation}  ·  PLAYER ${state.step + 1} OF 5` : p.situation;
+    taskText.textContent = taskFor(state, p);
+    renderBench(state, p);
+    coachText.textContent = hintFor(state, p);
+    coachEl.classList.toggle('result', state.phase === 'feedback');
+    play.classList.toggle('pick-phase', state.phase === 'pick');
+    play.classList.toggle('placing', state.phase === 'place');
+    if (state.phase !== 'feedback') clearFeedback();
+    if (state.phase === 'pick') {
+      primaryBtn.hidden = true;
+    } else {
+      primaryBtn.hidden = false;
+      primaryBtn.textContent = state.phase === 'feedback' ? 'NEXT' : 'LOCK IT IN';
+      primaryBtn.disabled = state.phase === 'feedback' ? Date.now() < nextReadyAt : !state.pending || stillOnWrongSpot(state, p);
+    }
+  }
+
+  // ---------- Feedback moment: banner, sound, goal light, slide to the right spot ----------
+  const sfx = name => { if (HTG.audio) HTG.audio.play(name); };
+  const BANNERS = {
+    perfect: r => [`PERFECT SPOT! +${r.points}`, 'perfect'],
+    nice: r => [`NICE! +${r.points}`, 'nice'],
+    close: r => [`CLOSE! +${r.points}`, 'close'],
+    miss: () => ['WHISTLE!', 'miss']
+  };
+  const SOUNDS = { perfect: ['goal', 'cheer'], nice: ['cheer'], close: ['ooh'], miss: ['whistle'] };
+  const NEXT_DELAY_MS = 1200;
+  let nextReadyAt = 0;
+  let feedbackSeq = 0;
+  const timers = [];
+
+  function later(ms, fn) { timers.push(setTimeout(fn, ms)); }
+
+  function showBanner(text, kind) {
+    bannerLayer.textContent = '';
+    htmlEl('div', `banner ${kind}`, bannerLayer, text);
+    sfx('swoosh');
+  }
+
+  function flashGoalLight() {
+    // 3 flashes at 2.5 per second: well under the 3-per-second photosensitivity limit.
+    for (let i = 0; i < 6; i++) later(i * 200, () => light.classList.toggle('on', i % 2 === 0));
+    later(1200, () => light.classList.remove('on'));
+  }
+
+  function slideToken(pos, from, to) {
+    const g = ourTokens[pos];
+    g.classList.remove('slide');
+    placeToken(g, from.x, from.y, discFt);
+    g.getBoundingClientRect();
+    g.classList.add('slide');
+    placeToken(g, to.x, to.y, discFt);
+    later(700, () => g.classList.remove('slide'));
+  }
+
+  function clearFeedback() {
+    while (timers.length) clearTimeout(timers.pop());
+    bannerLayer.textContent = '';
+    targetLayer.textContent = '';
+    light.classList.remove('on');
+    for (const pos of OURS) {
+      ourTokens[pos].classList.remove('lit', 'slide');
+      ourTokens[pos].firstChild.classList.remove('shake');
+    }
+  }
+
+  function runFeedback(state) {
+    clearFeedback();
+    const seq = ++feedbackSeq;
+    nextReadyAt = Date.now() + NEXT_DELAY_MS;
+    primaryBtn.disabled = true;
+    setTimeout(() => {
+      if (seq === feedbackSeq && HTG.app.state.phase === 'feedback') primaryBtn.disabled = false;
+    }, NEXT_DELAY_MS);
+
+    const last = state.last;
+    const p = PLAYS[state.playIndex];
+    if (last.kind === 'pick') {
+      const culprit = ourTokens[p.wrong.pos];
+      culprit.classList.add('lit');
+      if (last.correct) {
+        showBanner(`GOOD EYE! +${last.points}`, 'pick');
+        sfx('cheer');
+      } else {
+        showBanner('WHISTLE!', 'miss');
+        sfx('whistle');
+        culprit.firstChild.classList.add('shake');
+      }
+      return;
+    }
+
+    const [text, kind] = BANNERS[last.tier](last);
+    showBanner(text, kind);
+    for (const s of SOUNDS[last.tier]) sfx(s);
+    if (last.tier === 'perfect') flashGoalLight();
+    const target = state.positions[last.pos];
+    if (last.tier !== 'perfect') {
+      svgEl('circle', { class: 'target-ring', cx: target.x, cy: sy(target.y), r: discFt * 1.7 }, targetLayer);
+      slideToken(last.pos, last.from, target);
+    }
+    if (last.hatTrick) {
+      later(1900, () => { showBanner('HAT TRICK!', 'hattrick'); sfx('goal'); flashGoalLight(); });
+    }
+  }
+
+  // ---------- Input: click (or tap) the ice to place, or tap a player to pick ----------
+  // A click near the boards still lands the whole disc on the ice (the reducer's own clamp is the safety net).
+  function clickSpot(cx, cy) {
+    return HTG.logic.clampToRink(clientToRink(cx, cy), Math.max(2.5, discFt));
+  }
+
+  rink.addEventListener('click', e => {
+    if (state.screen !== 'play') return;
+    if (state.phase === 'pick') {
+      const tok = e.target.closest('.ours .tok');
+      if (tok) dispatch({ type: 'PICK', pos: tok.dataset.pos });
+      return;
+    }
+    if (state.phase !== 'place') return;
+    const p = clickSpot(e.clientX, e.clientY);
+    dispatch({ type: 'MOVE', x: p.x, y: p.y });
+  });
+
+  // ---------- Title, how-to, period intro, intermission, final ----------
+  const MAX_SCORE = HTG.logic.maxScore(PLAYS);
+  const fmt = n => n.toLocaleString('en-US');
+  const ZAMBONI = '<svg viewBox="0 0 100 54" aria-hidden="true"><rect x="6" y="14" width="70" height="30" rx="6" fill="#1e6bff" stroke="#fff" stroke-width="3"/>'
+    + '<rect x="58" y="4" width="24" height="18" rx="4" fill="#0a1226" stroke="#fff" stroke-width="3"/><rect x="76" y="26" width="18" height="18" rx="3" fill="#ffb627"/>'
+    + '<circle cx="24" cy="46" r="7" fill="#111" stroke="#fff" stroke-width="2"/><circle cx="62" cy="46" r="7" fill="#111" stroke="#fff" stroke-width="2"/>'
+    + '<text x="30" y="35" font-family="Bebas Neue, Impact, sans-serif" font-size="14" fill="#fff">ICE</text></svg>';
+
+  function cta(parent, label, action) {
+    const b = htmlEl('button', 'cta', parent, label);
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      if (HTG.audio) HTG.audio.unlock();
+      dispatch({ type: action });
+    });
+    return b;
+  }
+
+  const SCREENS = {
+    title(state, wrap) {
+      htmlEl('div', 'kicker', wrap, 'DEFENSE POSITIONING CHALLENGE');
+      const h = htmlEl('h1', null, wrap);
+      h.append('HOLD THE ');
+      htmlEl('em', null, h, 'HOUSE');
+      htmlEl('p', 'sub', wrap, 'Twelve plays. Three periods. Put your players in the right spot and guard the front of your net!');
+      if (state.best > 0) htmlEl('div', 'best', wrap, `YOUR BEST: ${fmt(state.best)}`);
+      cta(wrap, 'START', 'START');
+      const how = htmlEl('button', 'linkish', wrap, 'How to play');
+      how.type = 'button';
+      how.addEventListener('click', () => dispatch({ type: 'HOWTO' }));
+    },
+    howto(state, wrap) {
+      htmlEl('h2', null, wrap, 'HOW TO PLAY');
+      const steps = htmlEl('div', 'steps', wrap);
+      const lines = ['Click (or tap) the ice where your player should go.', 'Press LOCK IT IN.', 'Read what Coach says. Then hit NEXT.'];
+      lines.forEach((line, i) => {
+        const s = htmlEl('div', 'step', steps);
+        htmlEl('b', null, s, String(i + 1));
+        s.append(line);
+      });
+      htmlEl('p', 'sub', wrap, "Some plays ask you to find the player who's out of position. Tap them, then click where they should be!");
+      cta(wrap, "LET'S GO", 'LETS_GO');
+    },
+    periodIntro(state, wrap) {
+      const period = PLAYS[state.playIndex].period;
+      htmlEl('div', 'kicker', wrap, 'GET READY');
+      htmlEl('h1', null, wrap, `${ORDINAL[period - 1]} PERIOD`);
+      htmlEl('h2', null, wrap, PERIODS[period - 1].name.toUpperCase());
+      htmlEl('p', 'sub', wrap, `${PLAYS.filter(p => p.period === period).length} plays. Score: ${fmt(state.score)}.`);
+      cta(wrap, 'BEGIN', 'BEGIN_PERIOD');
+    },
+    intermission(state, wrap) {
+      const ended = PLAYS[state.playIndex - 1].period;
+      const lane = htmlEl('div', 'zlane', wrap);
+      htmlEl('div', 'zamboni', lane).innerHTML = ZAMBONI;
+      htmlEl('div', 'kicker', wrap, 'INTERMISSION');
+      htmlEl('h1', null, wrap, `END OF THE ${ORDINAL[ended - 1]}`);
+      const tally = htmlEl('div', 'tally', wrap);
+      htmlEl('b', null, htmlEl('div', null, tally, 'THIS PERIOD'), `+${fmt(state.periodScores[ended - 1])}`);
+      htmlEl('b', null, htmlEl('div', null, tally, 'TOTAL'), fmt(state.score));
+      cta(wrap, `START ${ORDINAL[ended]} PERIOD`, 'NEXT');
+    },
+    final(state, wrap) {
+      htmlEl('div', 'kicker', wrap, 'FINAL SCORE');
+      const big = htmlEl('div', 'bigscore', wrap, fmt(state.score));
+      htmlEl('small', null, big, ` / ${fmt(MAX_SCORE)}`);
+      htmlEl('div', 'award', wrap, HTG.logic.titleFor(state.score, MAX_SCORE).toUpperCase());
+      if (state.newBest) htmlEl('div', 'newbest', wrap, 'NEW PERSONAL BEST!');
+      else if (state.best > 0) htmlEl('div', 'best', wrap, `YOUR BEST: ${fmt(state.best)}`);
+      cta(wrap, 'PLAY AGAIN', 'PLAY_AGAIN');
+    }
+  };
+
+  function renderScreen(state, prev) {
+    mountedPlay = -1;
+    screenEl.textContent = '';
+    SCREENS[state.screen](state, htmlEl('section', 'scr', screenEl));
+    if (prev && prev.screen === state.screen) return;
+    if (state.screen === 'periodIntro') sfx('organ');
+    if (state.screen === 'final') {
+      sfx(state.newBest ? 'goal' : 'cheer');
+      if (state.newBest) flashGoalLight();
+    }
+  }
+
+  function renderBoard(state) {
+    const p = PLAYS[Math.min(state.playIndex, PLAYS.length - 1)];
+    const inGame = !['title', 'howto'].includes(state.screen);
+    whereEl.textContent = !inGame ? 'HOLD THE HOUSE'
+      : state.screen === 'final' ? 'FINAL'
+      : state.screen === 'intermission' ? 'INTERMISSION'
+      : `${ORDINAL[p.period - 1]} PERIOD  ·  PLAY ${p.n} / ${PLAYS.length}`;
+    scoreEl.textContent = inGame ? `SCORE ${fmt(state.score)}` : '';
+  }
+
+  function render(state, prev) {
+    renderBoard(state);
+    if (state.screen === 'play') {
+      renderPlay(state, prev);
+      if (state.last && state.phase === 'feedback' && (!prev || prev.last !== state.last)) runFeedback(state);
+    } else {
+      clearFeedback();
+      renderScreen(state, prev);
+    }
+  }
+
+  // ---------- Coordinates ----------
+  function rinkToClient(x, y) {
+    const pt = rink.createSVGPoint();
+    pt.x = x; pt.y = sy(y);
+    const p = pt.matrixTransform(rink.getScreenCTM());
+    return { cx: p.x, cy: p.y };
+  }
+
+  function clientToRink(cx, cy) {
+    const pt = rink.createSVGPoint();
+    pt.x = cx; pt.y = cy;
+    const p = pt.matrixTransform(rink.getScreenCTM().inverse());
+    return { x: p.x, y: sy(p.y) };
+  }
+
+  // ---------- App ----------
+  function browserStorage() {
+    try { return window.localStorage; } catch (e) { return null; }
+  }
+  const store = HTG.logic.makeStore(browserStorage());
+  let state = createGame({ seenHowTo: store.get('seenHowTo', false), best: store.get('best', 0) });
+
+  function dispatch(action) {
+    const prev = state;
+    state = reduce(state, action);
+    if (state === prev) return state;
+    if (state.seenHowTo && !prev.seenHowTo) store.set('seenHowTo', true);
+    if (state.screen === 'final' && prev.screen !== 'final') store.set('best', state.best);
+    render(state, prev);
+    return state;
+  }
+
+  primaryBtn.addEventListener('click', () => dispatch({ type: state.phase === 'feedback' ? 'NEXT' : 'LOCK' }));
+
+  // Sound: unlocked by the first tap anywhere (START is the usual one), mute remembered.
+  const audio = HTG.audio;
+  audio.setMuted(store.get('muted', false));
+  setMuteIcon(audio.muted);
+  muteBtn.addEventListener('click', () => {
+    audio.unlock();
+    audio.setMuted(!audio.muted);
+    setMuteIcon(audio.muted);
+    store.set('muted', audio.muted);
+  });
+  // iPad suspends audio when the kid switches apps; any tap brings it back.
+  document.addEventListener('pointerdown', () => {
+    if (!audio.ctx || audio.ctx.state !== 'running') audio.unlock();
+  }, { capture: true });
+
+  // Rotating an iPad or resizing the window rescales the discs; spots stay in rink feet.
+  const relayout = () => { if (state.screen === 'play') layoutTokens(state); };
+  window.addEventListener('resize', relayout);
+  if (window.ResizeObserver) new ResizeObserver(relayout).observe(stage);
+
+  HTG.ui = { render, rinkToClient, clientToRink, setMuteIcon, store, elements: { rink, stage, panel, benchEl, primaryBtn, ourTokens, otherLayer, targetLayer, coachText, light, muteBtn, screenEl } };
+  HTG.app = { get state() { return state; }, dispatch };
+  render(state, null);
+})();
+</script>
+</body>
+</html>
