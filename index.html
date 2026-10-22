@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hold the House</title>
+<title>Protect the House</title>
 <meta name="description" content="A hockey game for 9 and 10 year olds: put your players in the right defensive spot.">
-<meta property="og:title" content="Hold the House">
+<meta property="og:title" content="Protect the House">
 <meta property="og:description" content="Hockey positioning game: put your players in the right defensive spot!">
 <meta property="og:type" content="website">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Hold the House">
+<meta name="apple-mobile-web-app-title" content="Protect the House">
 <meta name="theme-color" content="#0a1226">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -240,7 +240,7 @@
 <div id="app">
   <!-- Shown only where the game's code can't run, like a file preview in Messages. The game replaces it on load. -->
   <div class="nojs">
-    <h1>Hold the House</h1>
+    <h1>Protect the House</h1>
     <p>This hockey game has to be opened from its web link in Safari or Chrome.</p>
     <p>A file preview (like tapping an attachment in a text message) can't run it. Ask your coach for the link.</p>
   </div>
@@ -1495,7 +1495,7 @@
     title(state, wrap) {
       htmlEl('div', 'kicker', wrap, 'DEFENSE POSITIONING CHALLENGE');
       const h = htmlEl('h1', null, wrap);
-      h.append('HOLD THE ');
+      h.append('PROTECT THE ');
       htmlEl('em', null, h, 'HOUSE');
       htmlEl('p', 'sub', wrap, 'Thirteen plays. Three periods. Put your players in the right spot and guard the front of your net!');
       htmlEl('div', 'player-tag', wrap, `PLAYING AS ${playerLabel()}`);
@@ -1631,7 +1631,7 @@
   function renderBoard(state) {
     const p = PLAYS[Math.min(state.playIndex, PLAYS.length - 1)];
     const inGame = !['title', 'howto'].includes(state.screen);
-    const label = !inGame ? 'HOLD THE HOUSE'
+    const label = !inGame ? 'PROTECT THE HOUSE'
       : state.screen === 'final' ? 'FINAL'
       : state.screen === 'intermission' ? 'INTERMISSION'
       : null;
@@ -1653,7 +1653,7 @@
     const wrap = htmlEl('section', 'scr', screenEl);
     htmlEl('div', 'kicker', wrap, 'TEAM ONLY');
     const h = htmlEl('h1', null, wrap);
-    h.append('HOLD THE ');
+    h.append('PROTECT THE ');
     htmlEl('em', null, h, 'HOUSE');
     const form = htmlEl('form', 'gate-form', wrap);
     const label = htmlEl('label', null, form, 'Team password');
