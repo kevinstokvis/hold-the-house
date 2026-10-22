@@ -206,6 +206,16 @@
   .lb { width: min(460px, 100%); display: flex; flex-direction: column; gap: 10px; }
   .lb h3 { font-family: var(--font-display); font-weight: 400; letter-spacing: .12em; font-size: 24px; margin: 0; color: var(--gold); }
   .lb-status { margin: 0; color: var(--muted); font-size: 18px; }
+  .lb-tabs { display: flex; gap: 6px; }
+  .lb-tab {
+    flex: 1; padding: 8px 4px; border-radius: 10px; cursor: pointer;
+    border: 2px solid rgba(255, 255, 255, .15); background: rgba(255, 255, 255, .04); color: var(--muted);
+    font-family: var(--font-display); font-size: 18px; letter-spacing: .08em;
+  }
+  .lb-tab.on { border-color: var(--gold); color: var(--gold); background: rgba(255, 182, 39, .12); }
+  .lb-body { display: flex; flex-direction: column; gap: 10px; }
+  .who-choice { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; }
+  .who-choice .cta { min-width: 220px; }
   .lb-rank { margin: 0; font-family: var(--font-display); font-size: 30px; letter-spacing: .04em; }
   .lb ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
   .lb li {
@@ -213,7 +223,7 @@
     padding: 8px 12px; border-radius: 8px; background: rgba(255, 255, 255, .05); font-size: 20px; font-variant-numeric: tabular-nums;
   }
   .lb li .r { font-family: var(--font-display); color: var(--muted); font-size: 22px; }
-  .lb li .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lb li .n { min-width: 0; overflow-wrap: anywhere; line-height: 1.2; }
   .lb li .s { font-family: var(--font-display); font-size: 24px; color: var(--gold); }
   .lb li.me { background: rgba(255, 182, 39, .18); outline: 2px solid var(--gold); }
   .lb li.gap { display: block; background: none; text-align: center; color: var(--muted); padding: 0; }
@@ -836,15 +846,25 @@
   const cleanNumber = s => String(s || '').replace(/\D/g, '').slice(0, 3);
 
   // 1-based place on the board (same name and number = same player), or null if not on it.
+  // Rows and players with no `who` are players (scores from before parents could play).
+  const whoOf = r => (r.who === 'parent' ? 'parent' : 'player');
+
   function findRank(board, player) {
-    const i = board.findIndex(r => String(r.name).toLowerCase() === player.name.toLowerCase() && String(r.number) === player.number);
+    const i = board.findIndex(r => String(r.name).toLowerCase() === player.name.toLowerCase()
+      && String(r.number) === player.number && whoOf(r) === whoOf(player));
     return i === -1 ? null : i + 1;
+  }
+
+  // How someone shows on the board: "Max #12", or "Kevin (#12's parent)".
+  function boardLabel(r) {
+    if (whoOf(r) === 'parent') return `${r.name} (${r.number ? `#${r.number}'s parent` : 'parent'})`;
+    return `${r.name}${r.number ? ' #' + r.number : ''}`;
   }
 
   HTG.logic = {
     dist, distToSegment, tierFor, isWrongSide, missDirection, scorePlacement, coachLine,
     scoreSpotPick, scoreRotatePick, maxScore, titleFor, nextStreak, clampToRink, makeStore,
-    checkPassword, TEAM_PASSWORD_HASH, cleanName, cleanNumber, findRank
+    checkPassword, TEAM_PASSWORD_HASH, cleanName, cleanNumber, findRank, boardLabel
   };
 })();
 </script>
@@ -1650,8 +1670,8 @@
       const h = htmlEl('h1', null, wrap);
       h.append('PROTECT THE ');
       htmlEl('em', null, h, 'HOUSE');
-      htmlEl('p', 'sub', wrap, 'Thirteen plays. Three periods. Put your players in the right spot and guard the front of your net!');
-      htmlEl('div', 'player-tag', wrap, `PLAYING AS ${playerLabel()}`);
+      htmlEl('p', 'sub', wrap, 'Fourteen plays. Three periods. Put your players in the right spot and guard the front of your net!');
+      htmlEl('div', 'player-tag', wrap, `PLAYING AS ${HTG.logic.boardLabel(me()).toUpperCase()}`);
       if (state.best > 0) htmlEl('div', 'best', wrap, `YOUR BEST: ${fmt(state.best)}`);
       cta(wrap, 'START', 'START');
       const links = htmlEl('div', 'title-links', wrap);
@@ -1659,7 +1679,9 @@
       link(links, 'How to play', () => dispatch({ type: 'HOWTO' }));
       link(links, 'Not you?', () => {
         player = null;
+        who = null;
         store.set('player', null);
+        store.set('who', null);
         render(state, null);
       });
     },
@@ -1716,8 +1738,10 @@
   }
 
   // ---------- Team leaderboard (stored in a Google Sheet, shown here) ----------
-  const playerLabel = () => `${player.name.toUpperCase()}${player.number ? ' #' + player.number : ''}`;
+  const me = () => ({ ...player, who });
   let scoreToPost = null;
+  // Players and parents each have a board, plus one with everyone. Each board opens on your own group's tab.
+  const BOARD_TABS = [['players', 'PLAYERS'], ['parents', 'PARENTS'], ['board', 'EVERYONE']];
 
   // Posts this game's score (when given) and shows the board. Any failure just shows a short note.
   async function loadBoard(box, score) {
@@ -1732,25 +1756,49 @@
     status.textContent = score != null ? 'Posting your score to the team board…' : 'Loading the team board…';
     try {
       const res = await fetch(url, score != null
-        ? { method: 'POST', body: JSON.stringify({ name: player.name, number: player.number, score }) }
+        ? { method: 'POST', body: JSON.stringify({ name: player.name, number: player.number, who, score }) }
         : {});
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || 'refused');
-      drawBoard(box, status, data.board);
+      drawBoard(box, status, data);
     } catch (e) {
       status.textContent = "Couldn't reach the team leaderboard right now. Try again later.";
     }
   }
 
-  function drawBoard(box, status, board) {
-    const rank = HTG.logic.findRank(board, player);
+  function drawBoard(box, status, data) {
     status.remove();
-    htmlEl('p', 'lb-rank', box, rank ? `You're #${rank} on the team!` : board.length ? 'Play a game to get on the board!' : 'Be the first on the board!');
-    const list = htmlEl('ol', null, box);
+    // A leaderboard script from before parents could play only sends `board`, and everyone on it is a player.
+    const lists = { board: data.board, players: data.players || data.board, parents: data.parents || [] };
+    const tabs = htmlEl('div', 'lb-tabs', box);
+    const body = htmlEl('div', 'lb-body', box);
+    const show = key => {
+      for (const b of tabs.children) b.classList.toggle('on', b.dataset.key === key);
+      fillBoard(body, lists[key], key);
+    };
+    for (const [key, label] of BOARD_TABS) {
+      const b = htmlEl('button', 'lb-tab', tabs, label);
+      b.type = 'button';
+      b.dataset.key = key;
+      b.addEventListener('click', () => show(key));
+    }
+    show(who === 'parent' ? 'parents' : 'players');
+  }
+
+  function fillBoard(body, board, key) {
+    body.textContent = '';
+    const rank = HTG.logic.findRank(board, me());
+    const mine = key === 'board' || key === (who === 'parent' ? 'parents' : 'players');
+    const where = key === 'board' ? 'overall' : key === 'parents' ? 'of the parents' : 'on the team';
+    const note = rank ? `You're #${rank} ${where}!`
+      : mine ? (board.length ? 'Play a game to get on the board!' : 'Be the first on the board!')
+      : (board.length ? '' : 'No scores here yet.');
+    if (note) htmlEl('p', 'lb-rank', body, note);
+    const list = htmlEl('ol', null, body);
     const row = (r, i) => {
-      const li = htmlEl('li', HTG.logic.findRank([r], player) ? 'me' : '', list);
+      const li = htmlEl('li', HTG.logic.findRank([r], me()) ? 'me' : '', list);
       htmlEl('span', 'r', li, String(i + 1));
-      htmlEl('span', 'n', li, `${r.name}${r.number ? ' #' + r.number : ''}`);
+      htmlEl('span', 'n', li, HTG.logic.boardLabel(r));
       htmlEl('span', 's', li, fmt(r.score));
     };
     board.slice(0, 10).forEach(row);
@@ -1838,6 +1886,25 @@
     });
   }
 
+  // "Player or parent?" screen, shown once the password is in, until this device has picked one.
+  function renderWhoScreen() {
+    mountedPlay = -1;
+    screenEl.textContent = '';
+    const wrap = htmlEl('section', 'scr', screenEl);
+    htmlEl('div', 'kicker', wrap, 'WELCOME TO THE TEAM');
+    htmlEl('h2', null, wrap, 'ARE YOU A…');
+    const row = htmlEl('div', 'who-choice', wrap);
+    for (const [value, label] of [['player', 'PLAYER'], ['parent', 'PARENT']]) {
+      const b = htmlEl('button', 'cta', row, label);
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        who = value;
+        store.set('who', who);
+        render(state, null);
+      });
+    }
+  }
+
   // "Who's playing?" screen, shown until this device has a player name.
   function renderNameScreen() {
     mountedPlay = -1;
@@ -1855,8 +1922,11 @@
       for (const k in attrs) input.setAttribute(k, attrs[k]);
       return input;
     };
-    const nameIn = field('player-name', 'First name', { type: 'text', maxlength: '16', autocapitalize: 'words', autocorrect: 'off' });
-    const numIn = field('player-number', 'Jersey number', { type: 'text', inputmode: 'numeric', maxlength: '3', enterkeyhint: 'go' });
+    const parent = who === 'parent';
+    const nameIn = field('player-name', parent ? 'Your first name' : 'First name',
+      { type: 'text', maxlength: '16', autocapitalize: 'words', autocorrect: 'off' });
+    const numIn = field('player-number', parent ? "Your player's jersey number" : 'Jersey number',
+      { type: 'text', inputmode: 'numeric', maxlength: '3', enterkeyhint: 'go' });
     const msg = htmlEl('p', 'gate-msg', form);
     const go = htmlEl('button', 'cta', form, "THAT'S ME");
     go.type = 'submit';
@@ -1878,6 +1948,10 @@
     renderBoard(state);
     if (!unlocked) {
       renderGate();
+      return;
+    }
+    if (!who) {
+      renderWhoScreen();
       return;
     }
     if (!player) {
@@ -1918,9 +1992,11 @@
   const saved = store.get('player', null);
   let player = saved && HTG.logic.cleanName(saved.name)
     ? { name: HTG.logic.cleanName(saved.name), number: HTG.logic.cleanNumber(saved.number) } : null;
+  // Devices set up before parents could play have a name but no "who", so they get asked once.
+  let who = ['player', 'parent'].includes(store.get('who', null)) ? store.get('who', null) : null;
 
   function dispatch(action) {
-    if (!unlocked || !player) return state;
+    if (!unlocked || !who || !player) return state;
     const prev = state;
     state = reduce(state, action);
     if (state === prev) return state;
