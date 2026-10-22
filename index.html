@@ -255,6 +255,7 @@
   const RINK = {
     width: 85, length: 200, cornerRadius: 28,
     ourNet: { x: 42.5, y: 11 }, theirNet: { x: 42.5, y: 189 },
+    netFront: { x: 42.5, y: 17 },   // top of our crease
     goalLineY: [11, 189], blueLineY: [75, 125], redLineY: 100,
     creaseRadius: 6, circleRadius: 15,
     endDots: [[20.5, 31], [64.5, 31], [20.5, 169], [64.5, 169]],
@@ -326,7 +327,7 @@
     },
     lowD: {
       perfect: 'Tied up! Between your player and the net. No tips, no rebounds.',
-      miss: 'Your player is right by the net. Get between them and the net.'
+      miss: 'Get between your player and the front of the net. Anywhere on that line works.'
     },
     belowLineD: {
       perfect: 'Stayed on the puck! Body between them and the front of the net.',
@@ -429,7 +430,7 @@
       ours: {
         RW: { x: 76.5, y: 38, role: 'wallW', check: 'X1', r: 4.5 },
         RD: { x: 66.5, y: 13.5, role: 'lowD', check: 'X2', r: 5 },
-        C: { x: 55, y: 32, role: 'slotC', r: 6 },
+        C: { x: 55, y: 32, role: 'slotC', r: 9 },
         LD: { x: 47.5, y: 17, role: 'netFrontD', check: 'X3', r: 4.5 },
         LW: { x: 37, y: 46, role: 'weakW', r: 9 }
       }
@@ -467,7 +468,8 @@
       puck: { x: 64, y: 82 }, goalie: null,
       ours: {
         RD: { x: 61, y: 74.5, role: 'rushD', check: 'X1', r: 5 },
-        LD: { x: 33, y: 74.5, role: 'partnerD', r: 6 },
+        // Coach: anywhere level with the partner counts, from about the left dot to just short of the partner.
+        LD: { x: 33, y: 74.5, role: 'partnerD', r: 6, lane: { from: { x: 20.5, y: 74.5 }, to: { x: 53, y: 74.5 } } },
         C: { x: 44, y: 100 },
         LW: { x: 22, y: 124 },
         RW: { x: 70, y: 108 }
@@ -496,7 +498,8 @@
         RD: { x: 56, y: 64 },
         LW: { x: 22, y: 104 },
         RW: { x: 66, y: 108 },
-        C: { x: 43.5, y: 84, role: 'backcheckC', check: 'X2', r: 7 }
+        // Coach: anywhere down the middle from their middle forward back to between our D.
+        C: { x: 43.5, y: 84, role: 'backcheckC', check: 'X2', r: 8, laneTo: { x: 42.5, y: 62 } }
       }
     },
     // carrier trying to walk out from beside the right side of our net.
@@ -522,7 +525,8 @@
         RD: { x: 64, y: 129 },
         F1: { x: 15, y: 183, role: 'forecheckF1', check: 'X1', r: 6 },
         F2: { x: 9.5, y: 167, role: 'forecheckF2', r: 7 },
-        F3: { x: 44, y: 153, role: 'forecheckF3', r: 7 }
+        // Coach: F3 is right anywhere high, from the middle over toward the puck-side boards.
+        F3: { x: 44, y: 153, role: 'forecheckF3', r: 7, lane: { from: { x: 16, y: 151 }, to: { x: 46, y: 153 } } }
       }
     },
     // carrier up the left half-wall.
@@ -533,7 +537,7 @@
       ours: {
         LW: { x: 9, y: 36.5, role: 'wallW', check: 'X1', r: 4.5 },
         LD: { x: 17, y: 14.5, role: 'lowD', check: 'X2', r: 5 },
-        C: { x: 30, y: 32, role: 'slotC', r: 6 },
+        C: { x: 30, y: 32, role: 'slotC', r: 9 },
         RD: { x: 41.5, y: 18.5, role: 'netFrontD', check: 'X3', r: 4.5 },
         RW: { x: 48, y: 46, role: 'weakW', r: 9 }
       }
@@ -562,7 +566,7 @@
       situation: 'Part 2 of the rush: your right D closed the gap.', task: SPOT_IT,
       pickRight: 'Good eye! The left D is way too deep. D partners skate back together.',
       pickWrong: "Look again: which D isn't skating back with their partner?" },
-    { n: 7, period: 2, type: 'place1', layout: 'backcheck', order: ['C'],
+    { n: 7, period: 2, type: 'place1', layout: 'backcheck', order: ['C'], double: true,
       situation: "They're rushing up the ice. Your left D steps up on the puck carrier.",
       task: "You're the center, racing back. Where do you go?" },
     { n: 8, period: 2, type: 'placeAll', layout: 'forecheck', order: ['F1', 'F2', 'F3'],
@@ -600,10 +604,14 @@
 
   const POINTS = { perfect: 100, nice: 60, close: 30, miss: 0, spotPick: 50 };
 
+  // Zone coverage jobs (coach): right anywhere on the line from their check to the front of the net,
+  // on the goal side. Pressure jobs and the net-front D keep an exact spot.
+  const LANE_ROLES = ['lowD', 'lowC', 'slotC', 'farPostD', 'backcheckC'];
+
   // The team leaderboard's web address (from leaderboard/SETUP.md). Empty means it isn't connected yet.
   const LEADERBOARD_URL = 'https://script.google.com/macros/s/AKfycbzXqYGLdQ4EXzYRUjhc-Kfol9BIIsKDtrqcygqObzw8m3ZFCe-sP4FnXFa1Mobo38IL/exec';
 
-  HTG.data = { RINK, VIEWS, ROLES, WRONG_SIDE_LINE, LAYOUTS, PLAYS, PERIODS, TITLES, POINTS, LEADERBOARD_URL };
+  HTG.data = { RINK, VIEWS, ROLES, WRONG_SIDE_LINE, LAYOUTS, PLAYS, PERIODS, TITLES, POINTS, LANE_ROLES, LEADERBOARD_URL };
 })();
 </script>
 <script id="htg-logic">
@@ -614,6 +622,13 @@
   const TIER_ORDER = ['perfect', 'nice', 'close', 'miss'];
 
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  function distToSegment(p, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    const k = len2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0;
+    return Math.hypot(p.x - (a.x + k * dx), p.y - (a.y + k * dy));
+  }
 
   function tierFor(d, r) {
     if (d <= r) return 'perfect';
@@ -634,8 +649,9 @@
     return Math.abs(placed.x - centerX) > Math.abs(target.x - centerX) ? 'tooWide' : null;
   }
 
-  function scorePlacement({ placed, target, check, net, deepSign }) {
-    const distance = dist(placed, target);
+  // A `lane` ({from, to}) scores by distance to that line instead of to the single target spot.
+  function scorePlacement({ placed, target, check, net, deepSign, lane = null }) {
+    const distance = lane ? distToSegment(placed, lane.from, lane.to) : dist(placed, target);
     let tier = tierFor(distance, target.r);
     const wrongSide = check ? isWrongSide(placed, check, net) : false;
     if (wrongSide && TIER_ORDER.indexOf(tier) < TIER_ORDER.indexOf('close')) tier = 'close';
@@ -659,7 +675,7 @@
   function maxScore(plays) {
     return plays.reduce((sum, play) => {
       if (play.type === 'spot') return sum + POINTS.spotPick + POINTS.perfect;
-      return sum + play.order.length * POINTS.perfect;
+      return sum + play.order.length * POINTS.perfect * (play.double ? 2 : 1);
     }, 0);
   }
 
@@ -742,7 +758,7 @@
   }
 
   HTG.logic = {
-    dist, tierFor, isWrongSide, missDirection, scorePlacement, coachLine,
+    dist, distToSegment, tierFor, isWrongSide, missDirection, scorePlacement, coachLine,
     scoreSpotPick, maxScore, titleFor, nextStreak, clampToRink, makeStore,
     checkPassword, TEAM_PASSWORD_HASH, cleanName, cleanNumber, findRank
   };
@@ -753,7 +769,7 @@
 // apply return the same state object, which makes double taps harmless.
 (function () {
   const HTG = globalThis.HTG = globalThis.HTG || {};
-  const { PLAYS, LAYOUTS, VIEWS, RINK } = HTG.data;
+  const { PLAYS, LAYOUTS, VIEWS, RINK, LANE_ROLES } = HTG.data;
   const L = HTG.logic;
   function createGame({ seenHowTo = false, best = 0 } = {}) {
     return {
@@ -767,7 +783,7 @@
     const layout = LAYOUTS[play.layout];
     const t = layout.ours[pos];
     const check = t.check ? layout.opponents.find(o => o.id === t.check) : null;
-    return { x: t.x, y: t.y, r: t.r, role: t.role, check: check ? { x: check.x, y: check.y } : null };
+    return { x: t.x, y: t.y, r: t.r, role: t.role, lane: t.lane || null, laneTo: t.laneTo || null, check: check ? { x: check.x, y: check.y } : null };
   }
 
   const activePos = state => Object.keys(state.positions).find(p => state.positions[p].status === 'active');
@@ -813,17 +829,20 @@
     if (play.type === 'spot' && state.pending.x === play.wrong.x && state.pending.y === play.wrong.y) return state;
     const pos = activePos(state);
     const target = targetFor(play, pos);
+    const lane = target.lane
+      || (target.check && LANE_ROLES.includes(target.role) ? { from: target.check, to: target.laneTo || RINK.netFront } : null);
     const result = L.scorePlacement({
-      placed: state.pending, target, check: target.check,
+      placed: state.pending, target, check: target.check, lane,
       net: RINK.ourNet, deepSign: VIEWS[LAYOUTS[play.layout].view].deepSign
     });
     const { streak, hatTrick } = L.nextStreak(state.streak, result.tier);
+    const points = result.points * (play.double ? 2 : 1);
     const last = {
-      kind: 'place', pos, from: state.pending, tier: result.tier, points: result.points,
+      kind: 'place', pos, from: state.pending, tier: result.tier, points,
       wrongSide: result.wrongSide, direction: result.direction, line: L.coachLine(result, target.role), hatTrick
     };
     const positions = { ...state.positions, [pos]: { x: target.x, y: target.y, status: 'ice' } };
-    return addPoints({ ...state, phase: 'feedback', positions, pending: null, streak, last }, result.points);
+    return addPoints({ ...state, phase: 'feedback', positions, pending: null, streak, last }, points);
   }
 
   function next(state) {
@@ -1078,7 +1097,8 @@
   const ORDINAL = ['1ST', '2ND', '3RD'];
   const DISC_FT = 2.6;        // real-life-ish player size on the rink
   const MIN_DISC_PX = 22;     // ...but never smaller than 44px across on a tablet or computer
-  const PHONE_PX_PER_FT = 6;  // below this the rink is phone-sized: draw players at true size so they don't pile up
+  const PHONE_PX_PER_FT = 6;  // below this the rink is phone-sized: smaller discs so players don't pile up
+  const PHONE_MIN_DISC_PX = 14; // ...but still 28px across, so labels stay readable
   const TOKEN_UNIT = 10;      // tokens are drawn at radius 10 so their labels use real font sizes
 
   const sy = y => RINK.length - y;
@@ -1261,7 +1281,7 @@
   function layoutTokens(state) {
     fitRink();
     const scale = pxPerFoot();
-    discFt = scale < PHONE_PX_PER_FT ? DISC_FT : Math.max(DISC_FT, MIN_DISC_PX / scale);
+    discFt = Math.max(DISC_FT, (scale < PHONE_PX_PER_FT ? PHONE_MIN_DISC_PX : MIN_DISC_PX) / scale);
     for (const node of otherLayer.children) {
       placeToken(node, +node.dataset.x, +node.dataset.y, discFt * (+node.dataset.scale || 1));
     }
@@ -1312,7 +1332,8 @@
     if (mountedPlay !== state.playIndex) mountPlay(state);
     const p = PLAYS[state.playIndex];
     layoutTokens(state);
-    taskLabel.textContent = p.type === 'placeAll' ? `${p.situation}  ·  PLAYER ${state.step + 1} OF ${p.order.length}` : p.situation;
+    taskLabel.textContent = (p.double ? '★ DOUBLE POINTS  ·  ' : '')
+      + (p.type === 'placeAll' ? `${p.situation}  ·  PLAYER ${state.step + 1} OF ${p.order.length}` : p.situation);
     taskText.textContent = taskFor(state, p);
     renderBench(state, p);
     coachText.textContent = hintFor(state, p);
