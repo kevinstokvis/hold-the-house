@@ -391,14 +391,13 @@
       wrongSide: 'Pressure the puck! F1 gets right on the carrier, coming from the middle.'
     },
     forecheckF2: {
-      perfect: 'Good support! F2 is inside, close to F1, ready to win the loose puck and cut off the pass to the middle.',
-      miss: 'F2 supports F1 from the inside: a couple of strides away, between the puck and the middle.',
-      tooDeep: "Too deep! Don't pile in with F1. Stay a couple of strides out, on the inside.",
-      tooHigh: 'Too high! Get in closer to F1, close enough to win the loose puck.',
-      tooWide: "Too wide! Come inside, so they can't pass to the middle."
+      perfect: "Good support! F2 covers their winger on the wall, so F1's puck can't go up the boards.",
+      miss: 'F2 covers their winger on the wall, on the same side as F1, a few strides higher.',
+      tooDeep: "Too deep! Don't pile in with F1. Get up the wall and cover their winger.",
+      tooHigh: 'Too high! Get down the wall onto their winger, close enough to win the loose puck.'
     },
     forecheckF3: {
-      perfect: "You're the safety! High slot. If the puck pops out, you're there.",
+      perfect: "You're the safety! Up high at the top of the circle. If the puck pops out, you're there.",
       miss: 'One forward always stays high on the forecheck.',
       tooDeep: 'Too deep! If all three forwards go in, one pass means a breakaway the other way.',
       tooHigh: 'Not that far back. Get to the top of the circles.'
@@ -597,10 +596,10 @@
         LD: { x: 14, y: 129 },
         RD: { x: 64, y: 129 },
         F1: { x: 15, y: 183, role: 'forecheckF1', check: 'X1', r: 6 },
-        // Coach: F2 supports low and inside, between F1's puck and the slot.
-        F2: { x: 22.5, y: 175.5, role: 'forecheckF2', r: 7 },
-        // Coach: F3 is right anywhere high, from the middle over toward the puck-side boards.
-        F3: { x: 44, y: 153, role: 'forecheckF3', r: 7, lane: { from: { x: 16, y: 151 }, to: { x: 46, y: 153 } } }
+        // Coach: F2 covers their winger on the wall.
+        F2: { x: 9.5, y: 167, role: 'forecheckF2', r: 7 },
+        // Coach: F3 is shown at the top of the puck-side circle, and is right anywhere high from there over to the middle.
+        F3: { x: 20.5, y: 154, role: 'forecheckF3', r: 7, lane: { from: { x: 14, y: 154 }, to: { x: 46, y: 153 } } }
       }
     },
     // The forecheck after their D reverses the puck to the other corner: the forwards rotate to the new side.
@@ -612,8 +611,8 @@
         LD: { x: 21, y: 129 },
         RD: { x: 71, y: 129 },
         F1: { x: 70, y: 183, role: 'forecheckF1', check: 'X1', r: 6 },
-        F2: { x: 62.5, y: 175.5, role: 'forecheckF2', r: 7 },
-        F3: { x: 41, y: 153, role: 'forecheckF3', r: 7, lane: { from: { x: 69, y: 151 }, to: { x: 39, y: 153 } } }
+        F2: { x: 75.5, y: 167, role: 'forecheckF2', r: 7 },
+        F3: { x: 64.5, y: 154, role: 'forecheckF3', r: 7, lane: { from: { x: 71, y: 154 }, to: { x: 39, y: 153 } } }
       }
     },
     // carrier up the left half-wall.
@@ -668,11 +667,11 @@
       task: 'Tap who does each job now, then place them.',
       pickRight: {
         F1: 'Right call! Your old F3 was high in the middle, closest to the new puck. Now they go hard as F1.',
-        F2: 'Right call! Your old F1 comes out of the corner and supports from the inside as the new F2.'
+        F2: 'Right call! Your old F1 comes out of the corner and covers their winger on the wall as the new F2.'
       },
       pickWrong: {
         F1: 'Look again: your old F3, high in the middle, is closest to the new puck. They become F1.',
-        F2: 'Look again: your old F1 comes out of the corner to support. They become F2.'
+        F2: 'Look again: your old F1 comes out of the corner to cover their winger. They become F2.'
       } },
     // 3rd period: the puck moves around our zone
     { n: 10, period: 3, type: 'place1', layout: 'rightHalfWall', order: ['LW'],
@@ -1331,9 +1330,11 @@
     for (const [x, y] of RINK.endDots) {
       svgEl('circle', { cx: x, cy: sy(y), r: circleRadius, fill: 'none', stroke: red, 'stroke-width': .4 }, g);
       svgEl('circle', { cx: x, cy: sy(y), r: 1, fill: red }, g);
+      // Hash marks are on the sides of the circle facing the boards and the middle, where the wingers line up.
+      const edge = Math.sqrt(circleRadius ** 2 - 2.9 ** 2);
       for (const side of [-1, 1]) {
-        const hx = x + side * 2.9;
-        svgEl('path', { d: `M${hx},${sy(y) - circleRadius} v-2 M${hx},${sy(y) + circleRadius} v2`, stroke: red, 'stroke-width': .35 }, g);
+        const hy = sy(y) + side * 2.9;
+        svgEl('path', { d: `M${x - edge},${hy} h-2 M${x + edge},${hy} h2`, stroke: red, 'stroke-width': .35 }, g);
       }
     }
     for (const [x, y] of RINK.nzDots) svgEl('circle', { cx: x, cy: sy(y), r: 1, fill: red }, g);
